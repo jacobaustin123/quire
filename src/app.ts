@@ -8,7 +8,7 @@ import { createEditor } from './editor';
 import { collapsedDoc } from './editor/math';
 import { closeUndoGroup } from './editor/extensions';
 import { attachTypewriter } from './editor/typewriter';
-import { searchState, selectCurrent, setQuery, step } from './editor/search';
+import { searchState, selectCurrent, setQuery, setVisibleRange, step, visibleRange } from './editor/search';
 import { fingerprint } from './formats/fingerprint';
 import { DEFAULT_META, formatForPath, type DocMeta, type Format, type LoadedDoc, type PMNode as JSONNode } from './formats/model';
 import { closePopover, popoverOpen, showPopover } from './ui/popover';
@@ -628,9 +628,19 @@ function openFind(): void {
   runFind();
 }
 
+let findTimer: number | undefined;
+
+/** Searches after a short pause in typing, so each keystroke doesn't rescan a 400-page document. */
+function scheduleFind(): void {
+  window.clearTimeout(findTimer);
+  findTimer = window.setTimeout(runFind, 120);
+}
+
 function runFind(): void {
+  window.clearTimeout(findTimer);
+  findTimer = undefined;
   const q = $<HTMLInputElement>('find-input').value;
-  const s = setQuery(editor.view, q);
+  const s = setQuery(editor.view, q, visibleRange(editor.view, scroller()));
   renderFindCount();
   if (s.index >= 0) revealPos(s.matches[s.index].from);
 }
@@ -646,6 +656,11 @@ function findStep(dir: 1 | -1): void {
     openFind();
     return;
   }
+  // Enter right after typing: run the pending search (landing on the first match) instead of skipping it.
+  if (findTimer !== undefined) {
+    runFind();
+    return;
+  }
   const s = step(editor.view, dir);
   renderFindCount();
   if (s.index >= 0) revealPos(s.matches[s.index].from);
@@ -654,7 +669,7 @@ function findStep(dir: 1 | -1): void {
 function closeFind(): void {
   $('findbar').hidden = true;
   selectCurrent(editor.view);
-  setQuery(editor.view, '');
+  setQuery(editor.view, '', { from: 0, to: 0 });
   editor.view.focus();
 }
 
@@ -830,7 +845,16 @@ api.onMenu((n) => void runMenu(n));
 
 $('btn-toolbar').addEventListener('click', () => runCommand('toggle-toolbar'));
 $('btn-theme').addEventListener('click', toggleTheme);
+let findScrollQueued = false;
 scroller().addEventListener('scroll', () => {
+  // Highlights follow the viewport while find is open.
+  if (!$('findbar').hidden && !findScrollQueued) {
+    findScrollQueued = true;
+    requestAnimationFrame(() => {
+      findScrollQueued = false;
+      setVisibleRange(editor.view, visibleRange(editor.view, scroller()));
+    });
+  }
   if (showPageNumbers) requestAnimationFrame(() => updatePageIndicator());
 }, { passive: true });
 // Clicking the empty margin below the text puts the caret at the end, like a page would.
@@ -860,7 +884,7 @@ gotoInput.addEventListener('keydown', (e) => {
 gotoInput.addEventListener('blur', () => setTimeout(() => closeGoto(false), 0));
 
 const findInput = $<HTMLInputElement>('find-input');
-findInput.addEventListener('input', runFind);
+findInput.addEventListener('input', scheduleFind);
 findInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); findStep(e.shiftKey ? -1 : 1); }
   if (e.key === 'Escape') { e.preventDefault(); closeFind(); }
