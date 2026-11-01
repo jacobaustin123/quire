@@ -280,7 +280,7 @@ body.cmd-down .ProseMirror a { cursor: pointer; }
 /* ---------- typewriter & focus ---------- */
 /* Room above the first line and below the last so any line can sit at the anchor height. */
 body.typewriter #page { padding-top: 40vh; padding-bottom: 60vh; }
-body.focus-mode .ProseMirror :is(p, h1, h2, h3, .math-block, .docx-raw, hr) { opacity: 0.28; transition: opacity 0.18s ease; }
+body.focus-mode .ProseMirror :is(p, h1, h2, h3, .math-block, .docx-raw, hr) { opacity: 0.28; transition: opacity 0.06s ease-out; }
 body.focus-mode .ProseMirror li::before { opacity: 0.28; }
 /* ::marker ignores opacity, so list numbers are dimmed through their colour instead. */
 body.focus-mode .ProseMirror li::marker { color: color-mix(in srgb, var(--ink) 28%, transparent); }
