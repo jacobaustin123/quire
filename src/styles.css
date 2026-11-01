@@ -14,6 +14,9 @@
   --field-border: rgba(31, 29, 26, 0.2);
   --focus-ring: rgba(47, 93, 155, 0.28);
   --chrome: rgba(251, 250, 247, 0.86);
+  /* Title and formatting bars sit a shade below the page so the top of the window isn't glaring. */
+  --bar: #f4f2ed;
+  --bar-rule: rgba(31, 29, 26, 0.1);
   --hover: rgba(31, 29, 26, 0.06);
   --active: rgba(31, 29, 26, 0.1);
   --accent: #2f5d9b;
@@ -47,6 +50,8 @@
     --field-border: rgba(231, 226, 217, 0.2);
     --focus-ring: rgba(141, 179, 232, 0.3);
     --chrome: rgba(27, 26, 25, 0.86);
+    --bar: transparent;
+    --bar-rule: transparent;
     --hover: rgba(231, 226, 217, 0.07);
     --active: rgba(231, 226, 217, 0.13);
     --accent: #8db3e8;
@@ -72,6 +77,8 @@
   --field-border: rgba(231, 226, 217, 0.2);
   --focus-ring: rgba(141, 179, 232, 0.3);
   --chrome: rgba(27, 26, 25, 0.86);
+  --bar: transparent;
+  --bar-rule: transparent;
   --hover: rgba(231, 226, 217, 0.07);
   --active: rgba(231, 226, 217, 0.13);
   --accent: #8db3e8;
@@ -110,7 +117,10 @@ svg .fill { fill: currentColor; stroke: none; }
   position: relative;
   -webkit-app-region: drag;
   user-select: none;
+  background: var(--bar);
 }
+/* With the formatting bar hidden, a hairline keeps the tinted title bar from bleeding into the page. */
+body:not(.toolbar-open) #titlebar { box-shadow: inset 0 -1px var(--bar-rule); }
 #title { font-size: 13px; font-weight: 500; color: var(--ink-2); letter-spacing: 0.01em; display: flex; align-items: center; gap: 7px; max-width: 60%; }
 #doc-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #doc-edited { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); opacity: 0; transition: opacity 0.2s; }
@@ -131,6 +141,7 @@ body.dirty #doc-edited { opacity: 1; }
   padding: 0 16px; height: 44px; opacity: 0; display: none;
   border-bottom: 1px solid var(--toolbar-rule);
   user-select: none;
+  background: var(--bar);
 }
 /* Shown instantly: animating height would re-lay out the whole document every frame. */
 body.toolbar-open #toolbar { display: flex; animation: tb-fade 0.12s ease-out forwards; }
