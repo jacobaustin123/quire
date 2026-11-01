@@ -12,6 +12,7 @@ import { FontFamily, FontSize, Indent, PasteCleanup, SmartTyping } from './exten
 import { MathBlock, MathInline, MathSource } from './math';
 import { DocxRaw, ListLevel } from './raw';
 import { Search } from './search';
+import { FocusParagraph } from './typewriter';
 
 /** Strikethrough on ⇧⌘X, since TipTap's default ⇧⌘S belongs to Save As. */
 const QuireStrike = Strike.extend({
@@ -49,6 +50,7 @@ export function quireExtensions(baseStyle: EditorHooks['baseStyle'] = () => ({ f
       DocxRaw,
       ListLevel,
       Search,
+      FocusParagraph,
   ];
 }
 

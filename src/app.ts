@@ -6,6 +6,7 @@ import type { Node as PMNode } from '@tiptap/pm/model';
 import { TextSelection } from '@tiptap/pm/state';
 import { createEditor } from './editor';
 import { collapsedDoc } from './editor/math';
+import { attachTypewriter } from './editor/typewriter';
 import { searchState, selectCurrent, setQuery, step } from './editor/search';
 import { fingerprint } from './formats/fingerprint';
 import { DEFAULT_META, formatForPath, type DocMeta, type Format, type LoadedDoc, type PMNode as JSONNode } from './formats/model';
@@ -203,6 +204,9 @@ async function boot(): Promise<void> {
   });
   syncToolbar();
   setToolbarOpen(localStorage.getItem('quire.toolbar') === '1');
+  recenterNow = attachTypewriter(editor, scroller());
+  setMode('typewriter', localStorage.getItem('quire.typewriter') === '1', false);
+  setMode('focus-mode', localStorage.getItem('quire.focus') === '1', false);
   editor.commands.focus('start', { scrollIntoView: false });
   updatePageIndicator(false);
   console.info(`[quire] boot done at ${performance.now().toFixed(0)}ms`);
@@ -474,6 +478,31 @@ function toggleTheme(): void {
   api.toggleTheme();
 }
 
+// ---------- typewriter & focus ----------
+
+let recenterNow: () => void = () => {};
+const MODE_LABELS: Record<string, string> = { typewriter: 'Typewriter', 'focus-mode': 'Focus' };
+const MODE_KEYS: Record<string, string> = { typewriter: 'quire.typewriter', 'focus-mode': 'quire.focus' };
+
+/** Turns a writing mode on/off (a body class), remembers it, and briefly says so. */
+function setMode(mode: 'typewriter' | 'focus-mode', on: boolean, announce = true): void {
+  document.body.classList.toggle(mode, on);
+  try {
+    localStorage.setItem(MODE_KEYS[mode], on ? '1' : '0');
+  } catch {}
+  // Re-run decorations (focus) and re-anchor the caret (typewriter) right away.
+  editor.view.dispatch(editor.state.tr.setMeta('quireMode', mode));
+  if (mode === 'typewriter' && on) requestAnimationFrame(recenterNow);
+  if (announce) {
+    const el = $('page-indicator');
+    el.textContent = `${MODE_LABELS[mode]} ${on ? 'on' : 'off'}`;
+    indicatorHeldUntil = performance.now() + 1100;
+    el.classList.add('show');
+    window.clearTimeout(indicatorTimer);
+    indicatorTimer = window.setTimeout(() => el.classList.remove('show'), 1100);
+  }
+}
+
 // ---------- pages & navigation ----------
 
 const scroller = () => $('scroller');
@@ -497,7 +526,10 @@ function currentPage(): number {
 }
 
 let indicatorTimer: number | undefined;
+/** While a short message (e.g. "Typewriter on") is showing, page numbers don't overwrite it. */
+let indicatorHeldUntil = 0;
 function updatePageIndicator(show = true): void {
+  if (performance.now() < indicatorHeldUntil) return;
   const el = $('page-indicator');
   el.textContent = `${currentPage()} / ${pageCount()}`;
   if (!show) return;
@@ -724,6 +756,8 @@ function runCommand(name: string): void {
     case 'clear-format': c().unsetAllMarks().run(); break;
     case 'toggle-toolbar': setToolbarOpen(!document.body.classList.contains('toolbar-open')); syncToolbar(); break;
     case 'toggle-theme': toggleTheme(); break;
+    case 'toggle-typewriter': setMode('typewriter', !document.body.classList.contains('typewriter')); break;
+    case 'toggle-focus': setMode('focus-mode', !document.body.classList.contains('focus-mode')); break;
     case 'goto-page': gotoPagePrompt(); break;
     case 'goto-start': gotoStart(); break;
     case 'goto-end': gotoEnd(); break;

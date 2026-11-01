@@ -48,6 +48,7 @@ Open a file from the command line during development: `npx electron . path/to/fi
 | Math | `$x^2$` inline, `$$…$$` on its own line (or `$$ ` + space) for display; ⇧⌘M; click to edit |
 | Link | ⌘K; ⌘-click to open |
 | Find | ⌘F, then ⏎ / ⇧⏎ for next / previous |
+| Typewriter mode / focus on paragraph | ⇧⌘T / ⌥⌘F |
 | Go to page / start / end | ⌘G, ⌘↑ (or ⌘Home), ⌘↓ / ⇧⌘G (or ⌘End) |
 | Switch between documents | ⌘` / ⇧⌘` |
 | Export PDF / print | ⌥⌘P / ⌘P |

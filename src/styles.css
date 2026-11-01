@@ -249,6 +249,19 @@ body.cmd-down .ProseMirror a { cursor: pointer; }
 .math-preview[hidden] { display: none; }
 .math-preview .katex-display { margin: 0; }
 
+/* ---------- typewriter & focus ---------- */
+/* Room above the first line and below the last so any line can sit at the anchor height. */
+body.typewriter #page { padding-top: 40vh; padding-bottom: 60vh; }
+body.focus-mode .ProseMirror :is(p, h1, h2, h3, .math-block, .docx-raw, hr) { opacity: 0.28; transition: opacity 0.18s ease; }
+body.focus-mode .ProseMirror li::before, body.focus-mode .ProseMirror li::marker { opacity: 0.28; }
+body.focus-mode .ProseMirror :is(p, h1, h2, h3).is-current { opacity: 1; }
+body.focus-mode .ProseMirror li:has(> p.is-current)::before { opacity: 1; }
+body.focus-mode .ProseMirror li:has(> p.is-current)::marker { color: var(--ink); }
+@media print {
+  body.typewriter #page { padding: 0; }
+  body.focus-mode .ProseMirror * { opacity: 1 !important; }
+}
+
 /* ---------- floating bits ---------- */
 #page-indicator {
   position: fixed; right: 18px; bottom: 14px; font: 11px var(--ui); color: var(--ink-3);
