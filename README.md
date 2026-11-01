@@ -39,7 +39,7 @@ Open a file from the command line during development: `npx electron . path/to/fi
 | Light / dark | ⇧⌘D or the half-moon button (View ▸ Appearance for System) |
 | Bold / italic / underline / strike | ⌘B ⌘I ⌘U ⇧⌘X |
 | Super / subscript | ⌘. ⌘, |
-| Headings / body | ⌥⌘1–3 / ⌥⌘0, or type `# `, `## `, `### ` |
+| Headings / body | ⌘1–3 (again to undo) or ⌥⌘1–3 / ⌥⌘0, or type `# `, `## `, `### ` |
 | Lists | type `* `, `- ` or `1. `; ⇧⌘8 / ⇧⌘7 |
 | Indent | Tab / ⇧Tab (nests list items; indents selected paragraphs; inserts a tab otherwise), ⌘] ⌘[ |
 | Align | ⇧⌘L ⇧⌘E ⇧⌘R ⇧⌘J |
