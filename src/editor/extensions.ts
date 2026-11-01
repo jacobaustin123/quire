@@ -3,7 +3,7 @@ import { Extension, textInputRule } from '@tiptap/core';
 import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state';
 import { Fragment, Slice, type Mark as PMMark, type Node as PMNode } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
-import { closeHistory } from '@tiptap/pm/history';
+import { closeHistory, isHistoryTransaction } from '@tiptap/pm/history';
 import { liftListItem } from '@tiptap/pm/schema-list';
 
 const MAX_INDENT = 8;
@@ -149,7 +149,7 @@ function backspaceAtStart(editor: import('@tiptap/core').Editor): boolean {
  * removed and the cursor lands at the end of the last item; a line with text joins that item's
  * line. (ProseMirror's default would turn the paragraph into a new, empty bullet.)
  */
-function joinOntoListAbove(view: EditorView): boolean {
+export function joinOntoListAbove(view: Pick<EditorView, "state" | "dispatch">): boolean {
   const { state } = view;
   const { $from } = state.selection;
   const depth = $from.depth;
@@ -168,6 +168,7 @@ function joinOntoListAbove(view: EditorView): boolean {
   const tr = state.tr.delete(paraStart, paraEnd);
   const para = $from.parent;
   if (para.content.size) tr.insert(target, para.content);
+  // If this leaves two lists touching, ListMerge joins them.
   tr.setSelection(TextSelection.create(tr.doc, target));
   view.dispatch(tr.scrollIntoView());
   return true;
@@ -201,6 +202,74 @@ export function removeBullet(state: EditorState, dispatch: (tr: Transaction) => 
   tr.setSelection(TextSelection.create(tr.doc, cur.selection.from));
   dispatch(tr.scrollIntoView());
   return true;
+}
+
+const LIST_TYPES = ['bulletList', 'orderedList'];
+
+/**
+ * Two lists of the same kind left touching by an edit become one, so numbering continues
+ * (1, 2 rather than 1, 1). Only the edited region is checked, and loading a document (a
+ * no-update transaction) or Undo/Redo never merges: lists kept apart in a docx stay apart.
+ */
+export const ListMerge = Extension.create({
+  name: 'listMerge',
+
+  addProseMirrorPlugins() {
+    return [listMergePlugin()];
+  },
+});
+
+/** The ListMerge plugin on its own (for tests on a bare EditorState). */
+export function listMergePlugin(): Plugin {
+  return new Plugin({
+        key: new PluginKey('quireListMerge'),
+        appendTransaction(trs, _old, state) {
+          if (!trs.some((t) => t.docChanged) || trs.some((t) => t.getMeta('preventUpdate') || isHistoryTransaction(t))) return null;
+          // The changed span in the final document.
+          let from = Infinity;
+          let to = -Infinity;
+          trs.forEach((t, i) => {
+            const after = trs.slice(i + 1);
+            t.mapping.maps.forEach((map, j) => {
+              map.forEach((_a, _b, start, end) => {
+                let s = start;
+                let e = end;
+                for (const m of t.mapping.maps.slice(j + 1)) [s, e] = [m.map(s, -1), m.map(e, 1)];
+                for (const later of after) [s, e] = [later.mapping.map(s, -1), later.mapping.map(e, 1)];
+                from = Math.min(from, s);
+                to = Math.max(to, e);
+              });
+            });
+          });
+          if (from > to) return null;
+          return mergeTouchingLists(state, Math.max(0, from - 1), Math.min(state.doc.content.size, to + 1));
+        },
+  });
+}
+
+/** Joins same-kind, same-level lists that meet within [from, to]; null when there are none. */
+export function mergeTouchingLists(state: EditorState, from: number, to: number): Transaction | null {
+  const joins: number[] = [];
+  const visit = (parent: PMNode, start: number) => {
+    let pos = start;
+    for (let i = 0; i < parent.childCount; i++) {
+      const child = parent.child(i);
+      const end = pos + child.nodeSize;
+      const next = i + 1 < parent.childCount ? parent.child(i + 1) : null;
+      if (next && end >= from && end <= to && LIST_TYPES.includes(child.type.name) && next.type === child.type && next.attrs.level === child.attrs.level) {
+        joins.push(end);
+      }
+      // Descend only into blocks overlapping the edit (nested lists live inside list items).
+      if (!child.isTextblock && !child.isAtom && end >= from && pos <= to) visit(child, pos + 1);
+      pos = end;
+    }
+  };
+  visit(state.doc, 0);
+  if (!joins.length) return null;
+  const tr = state.tr;
+  // Right to left, so earlier positions stay valid.
+  for (const at of joins.reverse()) tr.join(at);
+  return tr;
 }
 
 /** Adds a pt-valued `fontSize` attribute to the textStyle mark. */
