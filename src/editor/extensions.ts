@@ -134,7 +134,8 @@ function backspaceAtStart(editor: import('@tiptap/core').Editor): boolean {
         const { selection } = editor.state;
         if (!selection.empty || !(selection instanceof TextSelection)) return false;
         const { $from } = selection;
-        if ($from.parentOffset !== 0 || inList(editor.state)) return false;
+        if ($from.parentOffset !== 0) return false;
+        if (inList(editor.state)) return joinListItemBackward(editor.view);
         const node = $from.parent;
         if (!INDENT_TYPES.includes(node.type.name)) return false;
         // Backspace at the very start of an indented paragraph un-indents before merging.
@@ -166,6 +167,46 @@ function joinOntoListAbove(view: EditorView): boolean {
   const tr = state.tr.delete(paraStart, paraEnd);
   const para = $from.parent;
   if (para.content.size) tr.insert(target, para.content);
+  tr.setSelection(TextSelection.create(tr.doc, target));
+  view.dispatch(tr.scrollIntoView());
+  return true;
+}
+
+/**
+ * Backspace at the start of a bullet: removes the bullet and joins its text onto the end of the
+ * previous line in one step (ProseMirror's default only lifts the item out of the list, leaving
+ * the cursor on a separate plain line that needs a second Backspace).
+ */
+export function joinListItemBackward(view: Pick<EditorView, "state" | "dispatch">): boolean {
+  const { state } = view;
+  const { $from } = state.selection;
+  const depth = $from.depth;
+  const item = $from.node(depth - 1);
+  // Only the item's own first line, and only simple items: an item with nested content keeps
+  // the default behaviour rather than guessing where its sub-list should go.
+  if (item.type.name !== 'listItem' || $from.index(depth - 1) !== 0 || item.childCount !== 1) return false;
+  const paraStart = $from.before(depth);
+  // The previous line is the last textblock before this one, unless a block that isn't text
+  // (a table or image kept as raw docx) sits in between: never merge across that.
+  let target = -1;
+  state.doc.nodesBetween(0, paraStart, (n, pos) => {
+    if (n.isTextblock) {
+      if (pos + n.nodeSize <= paraStart) target = pos + n.nodeSize - 1;
+      return false;
+    }
+    if (n.isBlock && n.isAtom) {
+      target = -1;
+      return false;
+    }
+    return true;
+  });
+  if (target < 0) return false;
+  const list = $from.node(depth - 2);
+  // Removing the last item of a list removes the list too (an empty list isn't valid).
+  const [from, to] = list.childCount === 1 ? [$from.before(depth - 2), $from.after(depth - 2)] : [$from.before(depth - 1), $from.after(depth - 1)];
+  const tr = state.tr.delete(from, to);
+  // target is before everything deleted, so it is still valid.
+  if ($from.parent.content.size) tr.insert(target, $from.parent.content);
   tr.setSelection(TextSelection.create(tr.doc, target));
   view.dispatch(tr.scrollIntoView());
   return true;
