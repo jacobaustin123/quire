@@ -4,6 +4,7 @@ import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } 
 import { Fragment, Slice, type Mark as PMMark, type Node as PMNode } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
 import { closeHistory } from '@tiptap/pm/history';
+import { liftListItem } from '@tiptap/pm/schema-list';
 
 const MAX_INDENT = 8;
 const INDENT_TYPES = ['paragraph', 'heading'];
@@ -135,7 +136,7 @@ function backspaceAtStart(editor: import('@tiptap/core').Editor): boolean {
         if (!selection.empty || !(selection instanceof TextSelection)) return false;
         const { $from } = selection;
         if ($from.parentOffset !== 0) return false;
-        if (inList(editor.state)) return joinListItemBackward(editor.view);
+        if (inList(editor.state)) return removeBullet(editor.state, editor.view.dispatch);
         const node = $from.parent;
         if (!INDENT_TYPES.includes(node.type.name)) return false;
         // Backspace at the very start of an indented paragraph un-indents before merging.
@@ -173,42 +174,32 @@ function joinOntoListAbove(view: EditorView): boolean {
 }
 
 /**
- * Backspace at the start of a bullet: removes the bullet and joins its text onto the end of the
- * previous line in one step (ProseMirror's default only lifts the item out of the list, leaving
- * the cursor on a separate plain line that needs a second Backspace).
+ * Backspace at the start of a bullet removes the bullet: the line becomes a plain paragraph and
+ * the cursor stays at its start (a second Backspace then joins it onto the line above). Nested
+ * items come all the way out rather than moving up a level. ProseMirror's default would instead
+ * merge the line into the previous item as an unbulleted continuation.
  */
-export function joinListItemBackward(view: Pick<EditorView, "state" | "dispatch">): boolean {
-  const { state } = view;
+export function removeBullet(state: EditorState, dispatch: (tr: Transaction) => void): boolean {
   const { $from } = state.selection;
-  const depth = $from.depth;
-  const item = $from.node(depth - 1);
-  // Only the item's own first line, and only simple items: an item with nested content keeps
-  // the default behaviour rather than guessing where its sub-list should go.
-  if (item.type.name !== 'listItem' || $from.index(depth - 1) !== 0 || item.childCount !== 1) return false;
-  const paraStart = $from.before(depth);
-  // The previous line is the last textblock before this one, unless a block that isn't text
-  // (a table or image kept as raw docx) sits in between: never merge across that.
-  let target = -1;
-  state.doc.nodesBetween(0, paraStart, (n, pos) => {
-    if (n.isTextblock) {
-      if (pos + n.nodeSize <= paraStart) target = pos + n.nodeSize - 1;
-      return false;
-    }
-    if (n.isBlock && n.isAtom) {
-      target = -1;
-      return false;
-    }
-    return true;
-  });
-  if (target < 0) return false;
-  const list = $from.node(depth - 2);
-  // Removing the last item of a list removes the list too (an empty list isn't valid).
-  const [from, to] = list.childCount === 1 ? [$from.before(depth - 2), $from.after(depth - 2)] : [$from.before(depth - 1), $from.after(depth - 1)];
-  const tr = state.tr.delete(from, to);
-  // target is before everything deleted, so it is still valid.
-  if ($from.parent.content.size) tr.insert(target, $from.parent.content);
-  tr.setSelection(TextSelection.create(tr.doc, target));
-  view.dispatch(tr.scrollIntoView());
+  // Only from the item's own first line; later paragraphs in an item join as usual.
+  if ($from.node($from.depth - 1).type.name !== 'listItem' || $from.index($from.depth - 1) !== 0) return false;
+  const itemType = state.schema.nodes.listItem;
+  // Lift one level at a time until out of every list, gathering the steps into one transaction
+  // so a single Undo brings the bullet back.
+  const tr = state.tr;
+  let cur = state;
+  while (cur.selection.$from.node(cur.selection.$from.depth - 1).type === itemType) {
+    let lifted = false;
+    liftListItem(itemType)(cur, (sub) => {
+      for (const step of sub.steps) tr.step(step);
+      cur = cur.apply(sub);
+      lifted = true;
+    });
+    if (!lifted) break;
+  }
+  if (!tr.docChanged) return false;
+  tr.setSelection(TextSelection.create(tr.doc, cur.selection.from));
+  dispatch(tr.scrollIntoView());
   return true;
 }
 
