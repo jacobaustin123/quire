@@ -739,7 +739,7 @@ function buildMenu() {
         cmd('Toggle Light/Dark', 'toggle-theme', 'CmdOrCtrl+Shift+D'),
         { type: 'separator' },
         cmd('Typewriter Mode', 'toggle-typewriter', 'CmdOrCtrl+Shift+T'),
-        cmd('Focus on Paragraph', 'toggle-focus', 'CmdOrCtrl+Alt+F'),
+        cmd('Focus on Paragraph', 'toggle-focus', 'CmdOrCtrl+Shift+F'),
         { type: 'separator' },
         cmd('Go to Page…', 'goto-page', 'CmdOrCtrl+G'),
         cmd('Go to Beginning', 'goto-start', 'CmdOrCtrl+Up'),
