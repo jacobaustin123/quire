@@ -4,7 +4,7 @@
 
 <p align="center">
   A quiet editor for <code>.docx</code>, Markdown and plain text.<br>
-  Infinite-scroll writing, Markdown shortcuts everywhere, LaTeX, and Word files that come back exactly as they went in.
+  Markdown shortcuts, LaTeX, and Word files saved exactly as they came in.
 </p>
 
 <p align="center">
