@@ -204,9 +204,8 @@ async function boot(): Promise<void> {
   });
   syncToolbar();
   setToolbarOpen(localStorage.getItem('quire.toolbar') === '1');
+  // Writing modes always start off: they're something you switch into, not a resting state.
   recenterNow = attachTypewriter(editor, scroller());
-  setMode('typewriter', localStorage.getItem('quire.typewriter') === '1', false);
-  setMode('focus-mode', localStorage.getItem('quire.focus') === '1', false);
   editor.commands.focus('start', { scrollIntoView: false });
   updatePageIndicator(false);
   console.info(`[quire] boot done at ${performance.now().toFixed(0)}ms`);
@@ -482,14 +481,10 @@ function toggleTheme(): void {
 
 let recenterNow: () => void = () => {};
 const MODE_LABELS: Record<string, string> = { typewriter: 'Typewriter', 'focus-mode': 'Focus' };
-const MODE_KEYS: Record<string, string> = { typewriter: 'quire.typewriter', 'focus-mode': 'quire.focus' };
 
-/** Turns a writing mode on/off (a body class), remembers it, and briefly says so. */
+/** Turns a writing mode on/off for this window (a body class) and briefly says so. */
 function setMode(mode: 'typewriter' | 'focus-mode', on: boolean, announce = true): void {
   document.body.classList.toggle(mode, on);
-  try {
-    localStorage.setItem(MODE_KEYS[mode], on ? '1' : '0');
-  } catch {}
   // Re-run decorations (focus) and re-anchor the caret (typewriter) right away.
   editor.view.dispatch(editor.state.tr.setMeta('quireMode', mode));
   if (mode === 'typewriter' && on) requestAnimationFrame(recenterNow);
