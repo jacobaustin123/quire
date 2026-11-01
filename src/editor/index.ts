@@ -38,7 +38,9 @@ export function quireExtensions(baseStyle: EditorHooks['baseStyle'] = () => ({ f
       FontFamily,
       FontSize,
       TextAlign.configure({ types: ['heading', 'paragraph'], alignments: ['left', 'center', 'right', 'justify'] }),
-      Link.configure({ openOnClick: false, autolink: true, linkOnPaste: true, HTMLAttributes: { target: null, rel: null } }),
+      // Not inclusive: typing at the end of a link continues as plain text (TipTap makes links
+      // inclusive whenever autolink is on).
+      Link.extend({ inclusive: () => false }).configure({ openOnClick: false, autolink: true, linkOnPaste: true, HTMLAttributes: { target: null, rel: null } }),
       Superscript,
       Subscript,
       Indent,
