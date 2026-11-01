@@ -523,7 +523,7 @@ function currentPage(): number {
   return Math.max(1, Math.min(pageCount(), Math.floor(y / pagePx()) + 1));
 }
 
-// Lines at the left/right edges of the text column (View ▸ Show Text Boundaries), like Word's.
+// Lines at the left/right edges of the page (View ▸ Show Page Boundaries), like Word's.
 try {
   if (localStorage.getItem('quire.textBounds') === '1') document.body.classList.add('show-bounds');
 } catch {}

@@ -226,8 +226,15 @@ body.toolbar-open #toolbar { display: flex; animation: tb-fade 0.12s ease-out fo
      indicator) match print. */
   width: 6.5in; max-width: calc((100vw - 48px) / var(--doc-zoom, 1.15)); margin: 0 auto; padding: 56px 0 45vh;
 }
-/* Outer shadows paint only outside the box, so these are hairlines just beyond the text edges. */
-body.show-bounds #page { box-shadow: -1px 0 0 var(--bounds), 1px 0 0 var(--bounds); }
+/* Page edges, like Word: a Letter page is the 6.5in text column plus 1in margins either side.
+   In a window too narrow for that, the lines pull in to stay just inside the window. */
+#page { position: relative; }
+body.show-bounds #page::before {
+  --edge: min(1in, (100vw / var(--doc-zoom, 1.15) - 100%) / 2 - 4px);
+  content: ''; position: absolute; top: 0; bottom: 0; pointer-events: none;
+  left: calc(-1 * var(--edge)); right: calc(-1 * var(--edge));
+  border-left: 1px solid var(--bounds); border-right: 1px solid var(--bounds);
+}
 .ProseMirror {
   outline: none;
   font-family: var(--doc-font);
@@ -386,7 +393,8 @@ body.toolbar-open #findbar, body.toolbar-open #gotobar { top: 100px; }
   html, body { height: auto; overflow: visible; background: #fff; display: block; }
   #titlebar, #toolbar, #banner, #page-indicator, .bar, #popover, .math-preview { display: none !important; }
   #scroller { overflow: visible; }
-  #page { width: auto; max-width: none; padding: 0; margin: 0; zoom: 1; box-shadow: none !important; }
+  #page { width: auto; max-width: none; padding: 0; margin: 0; zoom: 1; }
+  #page::before { display: none !important; }
   /* Never print editing state: the caret, a selection, or ProseMirror's between-blocks cursor. */
   .ProseMirror { min-height: 0; color: #000; caret-color: transparent; }
   .ProseMirror ::selection, .ProseMirror::selection { background: transparent; }
