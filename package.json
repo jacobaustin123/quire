@@ -1,0 +1,96 @@
+{
+  "name": "quire",
+  "productName": "Quire",
+  "version": "0.1.0",
+  "description": "A quiet editor for docx, markdown, and plain text.",
+  "author": "Jacob Austin",
+  "license": "MIT",
+  "main": "main/main.js",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "npm run build && electron .",
+    "dev": "npm run build && electron . --dev",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "icon": "node scripts/make-icon.mjs",
+    "dist": "npm run build && electron-builder --mac dir -c.buildVersion=$(date +%Y%m%d.%H%M%S) && codesign --force --deep --sign - dist-app/mac-arm64/Quire.app",
+    "install-app": "scripts/install-app.sh"
+  },
+  "build": {
+    "appId": "com.jacobaustin.quire",
+    "productName": "Quire",
+    "directories": {
+      "output": "dist-app",
+      "buildResources": "build"
+    },
+    "files": [
+      "main/**",
+      "dist/**",
+      "package.json"
+    ],
+    "asar": true,
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "identity": null,
+      "darkModeSupport": true,
+      "extendInfo": {
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "Word Document",
+            "CFBundleTypeRole": "Editor",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "org.openxmlformats.wordprocessingml.document"
+            ]
+          },
+          {
+            "CFBundleTypeName": "Markdown Document",
+            "CFBundleTypeRole": "Editor",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "net.daringfireball.markdown"
+            ],
+            "CFBundleTypeExtensions": [
+              "md",
+              "markdown"
+            ]
+          },
+          {
+            "CFBundleTypeName": "Plain Text",
+            "CFBundleTypeRole": "Editor",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "public.plain-text"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "devDependencies": {
+    "@tiptap/core": "2.27.3",
+    "@tiptap/extension-font-family": "2.27.3",
+    "@tiptap/extension-link": "2.27.3",
+    "@tiptap/extension-strike": "2.27.3",
+    "@tiptap/extension-subscript": "2.27.3",
+    "@tiptap/extension-superscript": "2.27.3",
+    "@tiptap/extension-text-align": "2.27.3",
+    "@tiptap/extension-text-style": "2.27.3",
+    "@tiptap/extension-underline": "2.27.3",
+    "@tiptap/pm": "2.27.3",
+    "@tiptap/starter-kit": "2.27.3",
+    "@types/katex": "0.16.7",
+    "@types/markdown-it": "14.1.2",
+    "@xmldom/xmldom": "0.9.8",
+    "electron": "38.2.0",
+    "electron-builder": "26.0.12",
+    "esbuild": "0.25.10",
+    "jszip": "3.10.1",
+    "katex": "0.16.22",
+    "markdown-it": "14.1.0",
+    "typescript": "5.9.2",
+    "vitest": "3.2.4"
+  }
+}
