@@ -68,6 +68,7 @@ Open a file from the command line during development: `npx electron . path/to/fi
 | Find | ⌘F, then ⏎ / ⇧⏎ for next / previous |
 | Typewriter mode / focus on paragraph | ⇧⌘T / ⇧⌘F |
 | Go to page / start / end | ⌘G, ⌘↑ (or ⌘Home), ⌘↓ / ⇧⌘G (or ⌘End) |
+| Show page boundaries | ⇧⌘B |
 | Switch between documents | ⌘` / ⇧⌘` |
 | Export PDF / print | ⌥⌘P / ⌘P |
 
