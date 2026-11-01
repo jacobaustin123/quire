@@ -414,3 +414,73 @@ export function closeUndoGroup(editor: import('@tiptap/core').Editor): void {
   const storage = (editor.storage as unknown as Record<string, { last?: string }>).undoGrouping;
   if (storage) storage.last = 'none';
 }
+
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    paragraphSpacing: {
+      /** Line spacing (multiple of Word "single") for the selected paragraphs. */
+      setLineSpacing: (multiple: number) => ReturnType;
+      /** Space after the selected paragraphs, in pt. */
+      setSpaceAfter: (pt: number) => ReturnType;
+    };
+  }
+}
+
+/** Word's "single" spacing as a CSS line-height multiple (see app.ts WORD_SINGLE). */
+const CSS_SINGLE = 1.15;
+
+/**
+ * Per-paragraph spacing (docx w:spacing): space before/after in pt and line spacing as a multiple
+ * of single. Null means "inherit the document default".
+ */
+export const ParagraphSpacing = Extension.create({
+  name: 'paragraphSpacing',
+
+  addGlobalAttributes() {
+    const num = (name: string) => (el: HTMLElement) => {
+      const v = el.getAttribute(name);
+      return v === null || v === '' ? null : Number(v);
+    };
+    return [
+      {
+        types: ['paragraph', 'heading'],
+        attributes: {
+          spaceBefore: {
+            default: null,
+            parseHTML: num('data-space-before'),
+            renderHTML: (a) => (a.spaceBefore == null ? {} : { 'data-space-before': a.spaceBefore, style: `margin-top: ${a.spaceBefore}pt` }),
+          },
+          spaceAfter: {
+            default: null,
+            parseHTML: num('data-space-after'),
+            renderHTML: (a) => (a.spaceAfter == null ? {} : { 'data-space-after': a.spaceAfter, style: `margin-bottom: ${a.spaceAfter}pt` }),
+          },
+          lineSpacing: {
+            default: null,
+            parseHTML: num('data-line-spacing'),
+            renderHTML: (a) =>
+              a.lineSpacing == null ? {} : { 'data-line-spacing': a.lineSpacing, style: `line-height: ${(CSS_SINGLE * a.lineSpacing).toFixed(3)}` },
+          },
+        },
+      },
+    ];
+  },
+
+  addCommands() {
+    const setAttr = (key: string, value: number) =>
+      ({ tr, dispatch }: { tr: Transaction; dispatch?: (tr: Transaction) => void }) => {
+        const { from, to } = tr.selection;
+        tr.doc.nodesBetween(from, to, (node, pos) => {
+          if (node.type.name !== 'paragraph' && node.type.name !== 'heading') return true;
+          tr.setNodeMarkup(pos, undefined, { ...node.attrs, [key]: value });
+          return false;
+        });
+        if (dispatch) dispatch(tr);
+        return true;
+      };
+    return {
+      setLineSpacing: (multiple) => setAttr('lineSpacing', multiple),
+      setSpaceAfter: (pt) => setAttr('spaceAfter', pt),
+    };
+  },
+});

@@ -8,6 +8,10 @@ export interface DropdownOption {
   label: string;
   /** Inline style for the item (e.g. its own font family). */
   style?: string;
+  /** Explicit tick (for menus with several groups); otherwise the item matching the value is ticked. */
+  checked?: boolean;
+  /** Draws a divider above this item. */
+  separatorBefore?: boolean;
 }
 
 export interface Dropdown {
@@ -24,6 +28,8 @@ export function createDropdown(opts: {
   title: string;
   options: () => DropdownOption[];
   onSelect: (value: string) => void;
+  /** Fixed button content (e.g. an icon) instead of the current option's label. */
+  buttonHtml?: string;
 }): Dropdown {
   const button = document.createElement('button');
   button.className = `tb-dropdown ${opts.className}`;
@@ -32,6 +38,7 @@ export function createDropdown(opts: {
   const label = document.createElement('span');
   label.className = 'tb-dropdown-label';
   button.append(label);
+  if (opts.buttonHtml) label.innerHTML = opts.buttonHtml;
   let current = '';
 
   const open = () => {
@@ -44,7 +51,8 @@ export function createDropdown(opts: {
       const row = document.createElement('div');
       row.className = 'dropdown-item';
       row.setAttribute('role', 'option');
-      if (o.value === current) row.classList.add('checked');
+      if (o.checked ?? o.value === current) row.classList.add('checked');
+      if (o.separatorBefore) row.classList.add('separated');
       const text = document.createElement('span');
       text.textContent = o.label;
       if (o.style) text.setAttribute('style', o.style);
@@ -123,6 +131,7 @@ export function createDropdown(opts: {
     el: button,
     setValue(value, placeholder = '') {
       current = value;
+      if (opts.buttonHtml) return;
       const opt = opts.options().find((o) => o.value === value);
       label.textContent = value ? (opt?.label ?? value) : placeholder;
       label.classList.toggle('placeholder', !value);

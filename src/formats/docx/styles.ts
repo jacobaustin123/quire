@@ -26,6 +26,7 @@ export interface ParaProps {
   hasIlvl?: boolean;
   borderBottom?: boolean;
   spacingAfter?: number;
+  spacingBefore?: number;
   /** Line spacing as a multiple of single; exact/atLeast rules count as 1. */
   lineMultiple?: number;
 }
@@ -130,6 +131,8 @@ export function parseParaProps(pPr: Element): ParaProps {
       case 'w:spacing': {
         const v = intAttr(el, 'w:after');
         if (v !== null) p.spacingAfter = v;
+        const b = intAttr(el, 'w:before');
+        if (b !== null) p.spacingBefore = b;
         const line = intAttr(el, 'w:line');
         if (line !== null) {
           const rule = attr(el, 'w:lineRule');

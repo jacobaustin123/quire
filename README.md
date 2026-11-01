@@ -57,6 +57,7 @@ Open a file from the command line during development: `npx electron . path/to/fi
 | Lists | type `* `, `- ` or `1. `; ⇧⌘8 / ⇧⌘7 |
 | Indent | Tab / ⇧Tab (nests list items; indents selected paragraphs; inserts a tab otherwise), ⌘] ⌘[ |
 | Align | ⇧⌘L ⇧⌘E ⇧⌘R ⇧⌘J |
+| Line & paragraph spacing | formatting bar ▸ spacing menu (Single / 1.15 / 1.5 / Double, space after) |
 | Font size | ⇧⌘. / ⇧⌘, |
 | Markdown marks | `**bold**`, `*italic*`, `~~strike~~`, `---` rule |
 | Math | `$x^2$` inline, `$$…$$` on its own line (or `$$ ` + space) for display; ⇧⌘M; click to edit |

@@ -211,6 +211,7 @@ class BodyWriter {
     let s = '';
     if (styleId) s += `<w:pStyle w:val="${escapeXml(styleId)}"/>`;
     if (num) s += `<w:numPr><w:ilvl w:val="${num[0]}"/><w:numId w:val="${num[1]}"/></w:numPr>`;
+    s += spacingXml(attrs);
     const indent = Math.max(0, Math.min(8, Math.round(Number(attrs?.indent ?? 0)) || 0));
     const left = indTwips ?? (indent ? indent * 720 : 0);
     if (left) s += `<w:ind w:left="${left}"/>`;
@@ -677,4 +678,18 @@ async function exportIntoOriginal(doc: PMNode, meta: DocMeta, original: Uint8Arr
   zip.file(numPath, newNumXml);
   if (ctXml) zip.file('[Content_Types].xml', ctXml);
   return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
+}
+
+/** Explicit paragraph spacing (pt / multiple attrs) as a w:spacing element; '' when inherited. */
+function spacingXml(attrs: Record<string, unknown> | undefined): string {
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null);
+  const before = num(attrs?.spaceBefore);
+  const after = num(attrs?.spaceAfter);
+  const line = num(attrs?.lineSpacing);
+  if (before === null && after === null && line === null) return '';
+  let a = '';
+  if (before !== null) a += ` w:before="${Math.round(before * 20)}"`;
+  if (after !== null) a += ` w:after="${Math.round(after * 20)}"`;
+  if (line !== null && line > 0) a += ` w:line="${Math.round(line * 240)}" w:lineRule="auto"`;
+  return `<w:spacing${a}/>`;
 }

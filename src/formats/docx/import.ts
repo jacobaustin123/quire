@@ -46,6 +46,8 @@ interface Ctx {
   sawObject: boolean;
   /** Set when a paragraph may contain nested paragraphs (objects, AlternateContent). */
   sawComplex: boolean;
+  /** The document's default paragraph spacing (twips, multiple); paragraphs differing get attrs. */
+  baseSpacing: { before: number; after: number; line: number };
 }
 
 type Item =
@@ -115,6 +117,7 @@ export async function importDocx(
     counters: new Map(),
     sawObject: false,
     sawComplex: false,
+    baseSpacing: { before: basePara.spacingBefore ?? 0, after: basePara.spacingAfter ?? 0, line: basePara.lineMultiple ?? 1 },
   };
   for (const r of rels) {
     if (r.type === REL_TYPES.hyperlink || relTypeIs(r.type, 'hyperlink')) ctx.links.set(r.id, r.target);
@@ -249,6 +252,8 @@ function convertParagraph(p: Element, ctx: Ctx): Item {
   const align = eff.jc ? JC_MAP[eff.jc] : undefined;
   const attrs: Record<string, unknown> = {};
   if (align && align !== 'left') attrs.textAlign = align;
+  // Explicit spacing applies to every kind of paragraph (headings and list items included).
+  Object.assign(attrs, spacingAttrs(eff, ctx, heading ? ctx.styles.stylePara(styleId) : undefined));
 
   if (heading) {
     attrs.level = heading;
@@ -285,6 +290,27 @@ function convertParagraph(p: Element, ctx: Ctx): Item {
     return { k: 'cont', ilvl, para: paragraph(contAttrs, content), fallback: node };
   }
   return block(node);
+}
+
+/**
+ * Spacing that differs from the document default becomes paragraph attrs (pt / multiple), e.g. the
+ * common Word pattern of "8 pt after" in Normal with "0 pt after" set on most paragraphs.
+ */
+function spacingAttrs(eff: ParaProps, ctx: Ctx, headingStyle?: ParaProps): Record<string, number> {
+  const out: Record<string, number> = {};
+  const pt = (twips: number) => Math.round((twips / 20) * 2) / 2;
+  // A heading's own style spacing is its look (Quire's heading CSS); only direct overrides count.
+  const base = headingStyle
+    ? {
+        before: headingStyle.spacingBefore ?? ctx.baseSpacing.before,
+        after: headingStyle.spacingAfter ?? ctx.baseSpacing.after,
+        line: headingStyle.lineMultiple ?? ctx.baseSpacing.line,
+      }
+    : ctx.baseSpacing;
+  if (eff.spacingBefore !== undefined && eff.spacingBefore !== base.before) out.spaceBefore = pt(eff.spacingBefore);
+  if (eff.spacingAfter !== undefined && eff.spacingAfter !== base.after) out.spaceAfter = pt(eff.spacingAfter);
+  if (eff.lineMultiple !== undefined && Math.abs(eff.lineMultiple - base.line) > 0.005) out.lineSpacing = Math.round(eff.lineMultiple * 100) / 100;
+  return out;
 }
 
 function paragraph(attrs: Record<string, unknown>, content: PMNode[]): PMNode {

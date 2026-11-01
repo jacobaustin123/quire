@@ -26,6 +26,7 @@ const ICONS: Record<string, string> = {
   'align-right': '<path d="M4 5.5h12M8 9h8M4 12.5h12M8 16h8"/>',
   'align-justify': '<path d="M4 5.5h12M4 9h12M4 12.5h12M4 16h12"/>',
   'bullet-list': '<circle cx="5" cy="6" r=".9" class="fill"/><circle cx="5" cy="10" r=".9" class="fill"/><circle cx="5" cy="14" r=".9" class="fill"/><path d="M8.5 6H16M8.5 10H16M8.5 14H16"/>',
+  spacing: '<path d="M9 5.5h7M9 10h7M9 14.5h7"/><path d="M5 4.5v11M3.4 6.2 5 4.5l1.6 1.7M3.4 13.8 5 15.5l1.6-1.7"/>',
   'ordered-list': '<path d="M4.2 4.8 5.3 4.3v3.4M4.2 7.7h2.2M4.2 11.4c.2-.6.7-.9 1.2-.9.6 0 1 .4 1 .9 0 .9-2.3 1.6-2.3 2.6h2.4" stroke-width="1.1"/><path d="M8.5 6H16M8.5 10H16M8.5 14H16"/>',
   outdent: '<path d="M4 5h12M9 9h7M9 12h7M4 16h12M6.5 8.5 4 10.5l2.5 2"/>',
   indent: '<path d="M4 5h12M9 9h7M9 12h7M4 16h12M4 8.5l2.5 2-2.5 2"/>',
@@ -60,12 +61,28 @@ function selectionStyles(editor: Editor, baseFont: string, baseSize: number): { 
   return { fonts, sizes };
 }
 
+/** Line spacing and space-after shared by the selected paragraphs (null when they differ). */
+function currentSpacing(editor: Editor, baseLine: number, baseAfter: number): { line: number | null; after: number | null } {
+  const lines = new Set<number>();
+  const afters = new Set<number>();
+  const { from, to } = editor.state.selection;
+  editor.state.doc.nodesBetween(from, to, (node) => {
+    if (node.type.name !== 'paragraph' && node.type.name !== 'heading') return true;
+    lines.add((node.attrs.lineSpacing as number | null) ?? baseLine);
+    afters.add((node.attrs.spaceAfter as number | null) ?? baseAfter);
+    return false;
+  });
+  return { line: lines.size === 1 ? [...lines][0] : null, after: afters.size === 1 ? [...afters][0] : null };
+}
+
 export interface ToolbarHooks {
   run: (command: string) => void;
   setFont: (family: string) => void;
   setSize: (size: number) => void;
   baseFont: () => string;
   baseSize: () => number;
+  baseLineSpacing: () => number;
+  baseParagraphSpacing: () => number;
 }
 
 /** Renders the bar into `root` and returns a function that syncs it with the editor's selection. */
@@ -167,6 +184,29 @@ export function buildToolbar(root: HTMLElement, editor: Editor, hooks: ToolbarHo
   sep();
   button('bullet-list', icon('bullet-list'), 'Bulleted list (⇧⌘8)');
   button('ordered-list', icon('ordered-list'), 'Numbered list (⇧⌘7)');
+  // Line & paragraph spacing, like Word/Google Docs: applies to the selected paragraphs.
+  const LINES: [number, string][] = [[1, 'Single'], [1.15, '1.15'], [1.5, '1.5'], [2, 'Double']];
+  const AFTER: [number, string][] = [[0, 'No space after paragraph'], [6, '6 pt after paragraph'], [12, '12 pt after paragraph']];
+  const near = (a: number, b: number) => Math.abs(a - b) < 0.03;
+  const spacing = createDropdown({
+    className: 'spacing',
+    title: 'Line & paragraph spacing',
+    buttonHtml: icon('spacing'),
+    options: () => {
+      const cur = currentSpacing(editor, hooks.baseLineSpacing(), hooks.baseParagraphSpacing());
+      return [
+        ...LINES.map(([v, label]) => ({ value: `line:${v}`, label, checked: cur.line !== null && near(cur.line, v) })),
+        ...AFTER.map(([v, label], i) => ({ value: `after:${v}`, label, checked: cur.after !== null && near(cur.after, v), separatorBefore: i === 0 })),
+      ];
+    },
+    onSelect: (v) => {
+      const [kind, n] = v.split(':');
+      const ch = editor.chain().focus();
+      (kind === 'line' ? ch.setLineSpacing(Number(n)) : ch.setSpaceAfter(Number(n))).run();
+    },
+  });
+  root.append(spacing.el);
+  sep();
   button('outdent', icon('outdent'), 'Decrease indent (⇧⇥)');
   button('indent', icon('indent'), 'Increase indent (⇥)');
 

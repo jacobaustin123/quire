@@ -8,7 +8,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import Link from '@tiptap/extension-link';
 import Superscript from '@tiptap/extension-superscript';
 import Subscript from '@tiptap/extension-subscript';
-import { FontFamily, FontSize, Indent, PasteCleanup, SmartTyping, UndoGrouping } from './extensions';
+import { FontFamily, FontSize, Indent, ParagraphSpacing, PasteCleanup, SmartTyping, UndoGrouping } from './extensions';
 import { MathBlock, MathInline, MathSource } from './math';
 import { DocxRaw, ListLevel } from './raw';
 import { Search } from './search';
@@ -54,6 +54,7 @@ export function quireExtensions(baseStyle: EditorHooks['baseStyle'] = () => ({ f
       Search,
       FocusParagraph,
       UndoGrouping,
+      ParagraphSpacing,
   ];
 }
 

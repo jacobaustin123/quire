@@ -167,6 +167,10 @@ body.toolbar-open #toolbar { display: flex; animation: tb-fade 0.12s ease-out fo
 @keyframes menu-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 .dropdown-item { display: flex; align-items: center; height: 28px; padding: 0 12px 0 26px; border-radius: 5px; position: relative; white-space: nowrap; }
 .dropdown-item.checked::before { content: '✓'; position: absolute; left: 9px; font: 12px var(--ui); }
+.dropdown-item.separated { margin-top: 9px; }
+.dropdown-item.separated::after { content: ''; position: absolute; left: 6px; right: 6px; top: -5px; height: 1px; background: var(--rule); }
+.tb-dropdown.spacing { width: auto; padding-right: 7px; }
+.tb-dropdown.spacing svg { display: block; }
 .dropdown-item.active { background: var(--accent); color: #fff; }
 :root[data-theme="dark"] .dropdown-item.active { color: #111; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .dropdown-item.active { color: #111; } }

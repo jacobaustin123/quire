@@ -202,6 +202,8 @@ async function boot(): Promise<void> {
     setSize: setSize,
     baseFont: () => doc.meta.baseFont,
     baseSize: () => doc.meta.baseSize,
+    baseLineSpacing: () => doc.meta.lineSpacing || 1,
+    baseParagraphSpacing: () => doc.meta.paragraphSpacing,
   });
   syncToolbar();
   setToolbarOpen(localStorage.getItem('quire.toolbar') === '1');

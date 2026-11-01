@@ -217,6 +217,16 @@ describe('importDocx: runs and marks', () => {
     expect(c[0].content).toEqual([txt('a', { type: 'italic' }), txt('b'), txt('c', { type: 'bold' }, { type: 'italic' })]);
   });
 
+  it('keeps per-paragraph spacing that differs from the document default, and round-trips it', async () => {
+    const body = p(r('a')) + p(r('b'), '<w:spacing w:after="0"/>') + p(r('c'), '<w:spacing w:before="240" w:line="360" w:lineRule="auto"/>');
+    const c = await load({ styles: BASE_STYLES, body });
+    expect(c.map((n) => n.attrs)).toEqual([undefined, { spaceAfter: 0 }, { spaceBefore: 12, lineSpacing: 1.5 }]);
+    const doc = { type: 'doc', content: c };
+    // Same document defaults as BASE_STYLES (6 pt after, 1.15 lines), so the overrides stay overrides.
+    const again = await importDocx(await exportDocx(doc, { ...META, paragraphSpacing: 6, lineSpacing: 1.15 }), parseXml);
+    expect(again.doc.content!.map((n) => n.attrs)).toEqual([undefined, { spaceAfter: 0 }, { spaceBefore: 12, lineSpacing: 1.5 }]);
+  });
+
   it('resolves basedOn chains for paragraph and character styles', async () => {
     const styles =
       BASE_STYLES +
@@ -228,7 +238,8 @@ describe('importDocx: runs and marks', () => {
     expect(c).toEqual([
       {
         type: 'paragraph',
-        attrs: { textAlign: 'center', indent: 2 },
+        // Child isn't based on Normal, so it doesn't inherit Normal's 1.15 lines (Word agrees).
+        attrs: { textAlign: 'center', indent: 2, lineSpacing: 1 },
         content: [
           txt('x', { type: 'italic' }, { type: 'textStyle', attrs: { fontFamily: null, fontSize: '16' } }),
           txt('y', { type: 'bold' }, { type: 'italic' }, { type: 'textStyle', attrs: { fontFamily: 'Georgia', fontSize: '16' } }),
@@ -322,9 +333,9 @@ describe('importDocx: blocks', () => {
   it('maps alignment, indent, outline and headings', async () => {
     const styles =
       BASE_STYLES +
-      '<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:rPr><w:b/><w:sz w:val="32"/></w:rPr></w:style>' +
-      '<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/></w:style>' +
-      '<w:style w:type="paragraph" w:styleId="H5"><w:name w:val="heading 5"/></w:style>';
+      '<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="32"/></w:rPr></w:style>' +
+      '<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/></w:style>' +
+      '<w:style w:type="paragraph" w:styleId="H5"><w:name w:val="heading 5"/><w:basedOn w:val="Normal"/></w:style>';
     const c = await load({
       styles,
       body:
@@ -389,7 +400,7 @@ describe('importDocx: blocks', () => {
   const LIST_STYLES =
     BASE_STYLES +
     '<w:style w:type="numbering" w:styleId="LinkedList"><w:name w:val="LinkedList"/><w:pPr><w:numPr><w:numId w:val="5"/></w:numPr></w:pPr></w:style>' +
-    '<w:style w:type="paragraph" w:styleId="Bulleted"><w:name w:val="Bulleted"/><w:pPr><w:numPr><w:numId w:val="2"/></w:numPr><w:ind w:left="720"/></w:pPr></w:style>';
+    '<w:style w:type="paragraph" w:styleId="Bulleted"><w:name w:val="Bulleted"/><w:basedOn w:val="Normal"/><w:pPr><w:numPr><w:numId w:val="2"/></w:numPr><w:ind w:left="720"/></w:pPr></w:style>';
   const li = (text: string, numId: number, ilvl = 0): string =>
     p(r(text), `<w:numPr><w:ilvl w:val="${ilvl}"/><w:numId w:val="${numId}"/></w:numPr>`);
   const item = (text: string, ...rest: PMNode[]): PMNode => ({ type: 'listItem', content: [{ type: 'paragraph', content: [txt(text)] }, ...rest] });
@@ -549,7 +560,7 @@ describe('exportDocx', () => {
 
   it('round-trips into an original package, keeping its parts and sectPr', async () => {
     const original = await makeDocx({
-      styles: BASE_STYLES + '<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:pPr><w:ind w:left="720"/></w:pPr></w:style>',
+      styles: BASE_STYLES + '<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="720"/></w:pPr></w:style>',
       links: { rId5: 'https://old.test/' },
       body: p('<w:hyperlink r:id="rId5"><w:r><w:t>old</w:t></w:r></w:hyperlink>'),
       sectPr: '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr>',
