@@ -743,6 +743,7 @@ function buildMenu() {
         { type: 'separator' },
         cmd('Go to Page…', 'goto-page', 'CmdOrCtrl+G'),
         cmd('Show Page Numbers', 'toggle-page-numbers'),
+        cmd('Show Text Boundaries', 'toggle-text-bounds'),
         cmd('Go to Beginning', 'goto-start', 'CmdOrCtrl+Up'),
         cmd('Go to End', 'goto-end', 'CmdOrCtrl+Shift+G'),
         { type: 'separator' },

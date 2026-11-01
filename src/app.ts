@@ -523,6 +523,11 @@ function currentPage(): number {
   return Math.max(1, Math.min(pageCount(), Math.floor(y / pagePx()) + 1));
 }
 
+// Lines at the left/right edges of the text column (View ▸ Show Text Boundaries), like Word's.
+try {
+  if (localStorage.getItem('quire.textBounds') === '1') document.body.classList.add('show-bounds');
+} catch {}
+
 let indicatorTimer: number | undefined;
 /** Page numbers while scrolling are opt-in (View ▸ Show Page Numbers); explicit jumps always show. */
 let showPageNumbers = (() => {
@@ -783,6 +788,13 @@ function runCommand(name: string): void {
     case 'clear-format': c().unsetAllMarks().run(); break;
     case 'toggle-toolbar': setToolbarOpen(!document.body.classList.contains('toolbar-open')); syncToolbar(); break;
     case 'toggle-theme': toggleTheme(); break;
+    case 'toggle-text-bounds': {
+      const on = document.body.classList.toggle('show-bounds');
+      try {
+        localStorage.setItem('quire.textBounds', on ? '1' : '0');
+      } catch {}
+      break;
+    }
     case 'toggle-page-numbers': {
       showPageNumbers = !showPageNumbers;
       try {

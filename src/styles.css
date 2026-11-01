@@ -16,6 +16,7 @@
   --chrome: rgba(251, 250, 247, 0.86);
   /* Title and formatting bars sit a shade below the page so the top of the window isn't glaring. */
   --bar: #f4f2ed;
+  --bounds: rgba(31, 29, 26, 0.16);
   --bar-rule: rgba(31, 29, 26, 0.1);
   --hover: rgba(31, 29, 26, 0.06);
   --active: rgba(31, 29, 26, 0.1);
@@ -51,6 +52,7 @@
     --focus-ring: rgba(141, 179, 232, 0.3);
     --chrome: rgba(27, 26, 25, 0.86);
     --bar: transparent;
+    --bounds: rgba(231, 226, 217, 0.16);
     --bar-rule: transparent;
     --hover: rgba(231, 226, 217, 0.07);
     --active: rgba(231, 226, 217, 0.13);
@@ -78,6 +80,7 @@
   --focus-ring: rgba(141, 179, 232, 0.3);
   --chrome: rgba(27, 26, 25, 0.86);
   --bar: transparent;
+  --bounds: rgba(231, 226, 217, 0.16);
   --bar-rule: transparent;
   --hover: rgba(231, 226, 217, 0.07);
   --active: rgba(231, 226, 217, 0.13);
@@ -223,6 +226,8 @@ body.toolbar-open #toolbar { display: flex; animation: tb-fade 0.12s ease-out fo
      indicator) match print. */
   width: 6.5in; max-width: calc((100vw - 48px) / var(--doc-zoom, 1.15)); margin: 0 auto; padding: 56px 0 45vh;
 }
+/* Outer shadows paint only outside the box, so these are hairlines just beyond the text edges. */
+body.show-bounds #page { box-shadow: -1px 0 0 var(--bounds), 1px 0 0 var(--bounds); }
 .ProseMirror {
   outline: none;
   font-family: var(--doc-font);
@@ -381,7 +386,7 @@ body.toolbar-open #findbar, body.toolbar-open #gotobar { top: 100px; }
   html, body { height: auto; overflow: visible; background: #fff; display: block; }
   #titlebar, #toolbar, #banner, #page-indicator, .bar, #popover, .math-preview { display: none !important; }
   #scroller { overflow: visible; }
-  #page { width: auto; max-width: none; padding: 0; margin: 0; zoom: 1; }
+  #page { width: auto; max-width: none; padding: 0; margin: 0; zoom: 1; box-shadow: none !important; }
   /* Never print editing state: the caret, a selection, or ProseMirror's between-blocks cursor. */
   .ProseMirror { min-height: 0; color: #000; caret-color: transparent; }
   .ProseMirror ::selection, .ProseMirror::selection { background: transparent; }
