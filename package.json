@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "icon": "node scripts/make-icon.mjs",
     "dist": "npm run build && electron-builder --mac dir -c.buildVersion=$(date +%Y%m%d.%H%M%S) && codesign --force --deep --sign - dist-app/mac-arm64/Quire.app",
-    "install-app": "scripts/install-app.sh"
+    "install-app": "scripts/install-app.sh",
+    "scan": "node scripts/prepush-scan.mjs"
   },
   "build": {
     "appId": "com.jacobaustin.quire",

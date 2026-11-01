@@ -40,7 +40,10 @@ npm run typecheck
 npm run dist          # build dist-app/mac-arm64/Quire.app
 npm run install-app   # build, ad-hoc sign, and copy to /Applications
 npm run icon          # re-render build/icon.icns from build/icon.svg
+npm run scan          # check unpushed commits for secrets, personal paths and private text
 ```
+
+Before pushing, a hook runs `npm run scan` and blocks the push if it finds credentials, home-directory paths, or text from private documents. Turn the hook on once per clone with `git config core.hooksPath .githooks`. List private phrases (`term: …`) and documents (`doc: /path/file.docx`) in `.git/info/push-denylist`, which is never committed. A document is blocked if any run of 8 words from it shows up in a commit. Added or changed binary files are blocked until you have looked at them; then push with `QUIRE_ALLOW_BINARIES=1 git push`.
 
 Open a file from the command line during development: `npx electron . path/to/file.docx`.
 

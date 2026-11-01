@@ -1,0 +1,4 @@
+#!/bin/sh
+# Blocks pushes containing secrets, personal paths or private-document text (scripts/prepush-scan.mjs).
+# Enable once per clone: git config core.hooksPath .githooks
+QUIRE_PREPUSH_STDIN="$(cat)" exec node "$(git rev-parse --show-toplevel)/scripts/prepush-scan.mjs"
