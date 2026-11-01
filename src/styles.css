@@ -178,7 +178,9 @@ body.toolbar-open #toolbar { display: flex; animation: tb-fade 0.12s ease-out fo
   font-size: var(--doc-size);
   line-height: var(--line-height);
   color: var(--ink);
-  white-space: pre-wrap;
+  /* break-spaces (not pre-wrap): spaces at the end of a line take up room and wrap like any other
+     character, instead of hanging invisibly past the margin. */
+  white-space: break-spaces;
   word-wrap: break-word;
   tab-size: 0.5in;
   font-variant-ligatures: common-ligatures;
