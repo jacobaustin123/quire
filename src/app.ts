@@ -97,7 +97,7 @@ async function decode(format: Format, bytes: Uint8Array): Promise<LoadedDoc & { 
 
 function applyMeta(meta: DocMeta): void {
   const root = document.documentElement.style;
-  root.setProperty('--doc-font', `"${meta.baseFont}", Charter, Georgia, serif`);
+  root.setProperty('--doc-font', `"${meta.baseFont}", "Times New Roman", Times, serif`);
   root.setProperty('--doc-size', `${meta.baseSize}pt`);
   root.setProperty('--para-gap', `${meta.paragraphSpacing}pt`);
   // Word's "single" spacing is ~1.15× the font size for Times New Roman (its hhea ascent + descent +

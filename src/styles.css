@@ -22,7 +22,7 @@
   --hit-current: rgba(222, 160, 30, 0.7);
   --pop-bg: #ffffff;
   --pop-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 8px 28px rgba(0, 0, 0, 0.12);
-  --doc-font: Charter, 'Iowan Old Style', Georgia, serif;
+  --doc-font: 'Times New Roman', Times, serif;
   --doc-size: 12pt;
   --para-gap: 6pt;
   --line-height: 1.15;
@@ -144,13 +144,39 @@ body.toolbar-open #toolbar { display: flex; animation: tb-fade 0.12s ease-out fo
 .tb-select:hover, .tb-size input:hover { background-color: var(--hover); }
 .tb-select.font { width: 150px; }
 .tb-select.style { width: 108px; }
+/* Drop-downs that open below the button, like Word's (not centred over it like macOS popups). */
+.tb-dropdown {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 6px;
+  height: 28px; padding: 0 8px 0 9px; border: 0; border-radius: 7px; background: transparent;
+  color: var(--ink); font: 12.5px var(--ui); cursor: default; text-align: left;
+}
+.tb-dropdown::after {
+  content: ''; width: 5px; height: 5px; flex: none; margin-top: -3px;
+  border-right: 1.3px solid var(--ink-3); border-bottom: 1.3px solid var(--ink-3); transform: rotate(45deg);
+}
+.tb-dropdown:hover, .tb-dropdown.open { background: var(--hover); }
+.tb-dropdown.font { width: 156px; }
+.tb-dropdown.style { width: 108px; }
+.tb-dropdown-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-dropdown-label.placeholder { color: var(--ink-3); }
+.dropdown-menu {
+  position: fixed; z-index: 30; overflow-y: auto; padding: 5px;
+  background: var(--surface); border: 1px solid var(--surface-border); box-shadow: var(--surface-shadow);
+  border-radius: 9px; color: var(--ink); font: 13px var(--ui); animation: menu-in 0.08s ease-out;
+}
+@keyframes menu-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.dropdown-item { display: flex; align-items: center; height: 28px; padding: 0 12px 0 26px; border-radius: 5px; position: relative; white-space: nowrap; }
+.dropdown-item.checked::before { content: '✓'; position: absolute; left: 9px; font: 12px var(--ui); }
+.dropdown-item.active { background: var(--accent); color: #fff; }
+:root[data-theme="dark"] .dropdown-item.active { color: #111; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .dropdown-item.active { color: #111; } }
 .tb-size { display: flex; align-items: center; }
 .tb-size input { width: 38px; text-align: center; padding: 0 2px; }
 .tb-size input:focus { background-color: var(--hover); }
 .tb-size .ghost { width: 22px; }
 .tb-size svg { width: 14px; height: 14px; }
-.ghost .glyph { font: 600 14px/1 Charter, Georgia, serif; }
-#btn-toolbar .glyph { font: 500 14.5px/1 Charter, Georgia, serif; letter-spacing: -0.02em; }
+.ghost .glyph { font: 600 15px/1 'Times New Roman', Times, serif; }
+#btn-toolbar .glyph { font: 500 15.5px/1 'Times New Roman', Times, serif; letter-spacing: -0.01em; }
 .ghost .glyph.i { font-style: italic; font-weight: 400; }
 .ghost .glyph.u { text-decoration: underline; text-underline-offset: 2px; font-weight: 400; }
 .ghost .glyph.s { text-decoration: line-through; font-weight: 400; }

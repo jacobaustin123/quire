@@ -1,11 +1,12 @@
 /** The collapsible formatting bar. */
 import type { Editor } from '@tiptap/core';
+import { createDropdown, type DropdownOption } from './dropdown';
 
 export const FONTS = [
+  'Times New Roman',
   'Charter',
   'Iowan Old Style',
   'Georgia',
-  'Times New Roman',
   'Palatino',
   'Baskerville',
   'Hoefler Text',
@@ -91,41 +92,33 @@ export function buildToolbar(root: HTMLElement, editor: Editor, hooks: ToolbarHo
     root.append(b);
   };
 
-  const style = mk('select', 'tb-select style');
-  style.title = 'Paragraph style';
-  for (const [v, l] of [['p', 'Body'], ['h1', 'Heading 1'], ['h2', 'Heading 2'], ['h3', 'Heading 3']]) {
-    style.append(new Option(l, v));
-  }
-  style.addEventListener('change', () => {
-    hooks.run(style.value === 'p' ? 'paragraph' : style.value);
+  const STYLES: DropdownOption[] = [
+    { value: 'p', label: 'Body' },
+    { value: 'h1', label: 'Heading 1', style: 'font-weight: 700; font-size: 15px' },
+    { value: 'h2', label: 'Heading 2', style: 'font-weight: 700; font-size: 14px' },
+    { value: 'h3', label: 'Heading 3', style: 'font-weight: 700' },
+  ];
+  const style = createDropdown({
+    className: 'style',
+    title: 'Paragraph style',
+    options: () => STYLES,
+    onSelect: (v) => hooks.run(v === 'p' ? 'paragraph' : v),
   });
-  root.append(style);
+  root.append(style.el);
   sep();
 
-  const font = mk('select', 'tb-select font');
-  font.title = 'Font';
-  let fontKey = '';
-  const fillFonts = (current: string) => {
-    const list = FONTS.includes(current) || !current ? FONTS : [current, ...FONTS];
-    const key = `${current ? '' : 'mixed|'}${list[0]}|${list.length}`;
-    if (key === fontKey) return;
-    fontKey = key;
-    const options = list.map((f) => {
-      const o = new Option(f, f);
-      o.style.fontFamily = `"${f}"`;
-      return o;
-    });
-    if (!current) {
-      // Only present for mixed selections, and visible: with a hidden placeholder the macOS popup
-      // would tick the first font in the list instead.
-      const mixed = new Option('Multiple fonts', '');
-      mixed.disabled = true;
-      options.unshift(mixed);
-    }
-    font.replaceChildren(...options);
-  };
-  font.addEventListener('change', () => hooks.setFont(font.value));
-  root.append(font);
+  // The document's own font is listed even if it isn't one of ours, so it can be picked back.
+  let currentFont = '';
+  const font = createDropdown({
+    className: 'font',
+    title: 'Font',
+    options: () => {
+      const list = !currentFont || FONTS.includes(currentFont) ? FONTS : [currentFont, ...FONTS];
+      return list.map((f) => ({ value: f, label: f, style: `font-family: "${f}"; font-size: 14px` }));
+    },
+    onSelect: (f) => hooks.setFont(f),
+  });
+  root.append(font.el);
 
   const sizeWrap = mk('div', 'tb-size');
   const down = mk('button', 'ghost', icon('minus'));
@@ -169,13 +162,13 @@ export function buildToolbar(root: HTMLElement, editor: Editor, hooks: ToolbarHo
   return () => {
     const { fonts, sizes } = selectionStyles(editor, hooks.baseFont(), hooks.baseSize());
     const fam = fonts.size === 1 ? [...fonts][0] : '';
-    fillFonts(fam);
-    // A blank selector means the selection mixes fonts — showing one would be a lie.
-    font.value = fam;
+    currentFont = fam;
+    // A mixed selection shows a placeholder — naming one font would be a lie.
+    font.setValue(fam, 'Multiple fonts');
     if (document.activeElement !== size) size.value = sizes.size === 1 ? [...sizes][0] : '';
-    style.value = editor.isActive('heading', { level: 1 }) ? 'h1'
+    style.setValue(editor.isActive('heading', { level: 1 }) ? 'h1'
       : editor.isActive('heading', { level: 2 }) ? 'h2'
-      : editor.isActive('heading', { level: 3 }) ? 'h3' : 'p';
+      : editor.isActive('heading', { level: 3 }) ? 'h3' : 'p');
     const on = (cmd: string, active: boolean) => buttons.get(cmd)?.classList.toggle('on', active);
     on('bold', editor.isActive('bold'));
     on('italic', editor.isActive('italic'));
