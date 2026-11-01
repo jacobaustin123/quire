@@ -1,9 +1,24 @@
-# Quire
+<p align="center">
+  <img src="docs/images/icon.png" width="128" height="128" alt="Quire icon">
+</p>
 
-A quiet editor for `.docx`, `.md` and `.txt`. Infinite-scroll text, a formatting bar you can hide,
-markdown shortcuts everywhere, LaTeX, and crash recovery. Built with Electron + TipTap/ProseMirror.
+<h1 align="center">Quire</h1>
+
+<p align="center">
+  A quiet editor for <code>.docx</code>, Markdown and plain text.<br>
+  Infinite-scroll writing, Markdown shortcuts everywhere, LaTeX, and Word files that come back exactly as they went in.
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshot-dark.png">
+    <img src="docs/images/screenshot-light.png" width="860" alt="Quire editing a document with headings, lists, an inline and a display equation, and the formatting bar open">
+  </picture>
+</p>
 
 > *quire* (n.) — a gathering of folded sheets nested together; the unit a book is sewn from.
+
+Built with Electron and TipTap/ProseMirror. macOS (Apple silicon).
 
 ## Install
 
