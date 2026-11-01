@@ -742,6 +742,7 @@ function buildMenu() {
         cmd('Focus on Paragraph', 'toggle-focus', 'CmdOrCtrl+Shift+F'),
         { type: 'separator' },
         cmd('Go to Page…', 'goto-page', 'CmdOrCtrl+G'),
+        cmd('Show Page Numbers', 'toggle-page-numbers'),
         cmd('Go to Beginning', 'goto-start', 'CmdOrCtrl+Up'),
         cmd('Go to End', 'goto-end', 'CmdOrCtrl+Shift+G'),
         { type: 'separator' },

@@ -521,6 +521,14 @@ function currentPage(): number {
 }
 
 let indicatorTimer: number | undefined;
+/** Page numbers while scrolling are opt-in (View ▸ Show Page Numbers); explicit jumps always show. */
+let showPageNumbers = (() => {
+  try {
+    return localStorage.getItem('quire.pageNumbers') === '1';
+  } catch {
+    return false;
+  }
+})();
 /** While a short message (e.g. "Typewriter on") is showing, page numbers don't overwrite it. */
 let indicatorHeldUntil = 0;
 function updatePageIndicator(show = true): void {
@@ -751,6 +759,19 @@ function runCommand(name: string): void {
     case 'clear-format': c().unsetAllMarks().run(); break;
     case 'toggle-toolbar': setToolbarOpen(!document.body.classList.contains('toolbar-open')); syncToolbar(); break;
     case 'toggle-theme': toggleTheme(); break;
+    case 'toggle-page-numbers': {
+      showPageNumbers = !showPageNumbers;
+      try {
+        localStorage.setItem('quire.pageNumbers', showPageNumbers ? '1' : '0');
+      } catch {}
+      const el = $('page-indicator');
+      el.textContent = showPageNumbers ? `Page numbers on · ${currentPage()} / ${pageCount()}` : 'Page numbers off';
+      indicatorHeldUntil = performance.now() + 1100;
+      el.classList.add('show');
+      window.clearTimeout(indicatorTimer);
+      indicatorTimer = window.setTimeout(() => el.classList.remove('show'), 1100);
+      break;
+    }
     case 'toggle-typewriter': setMode('typewriter', !document.body.classList.contains('typewriter')); break;
     case 'toggle-focus': setMode('focus-mode', !document.body.classList.contains('focus-mode')); break;
     case 'goto-page': gotoPagePrompt(); break;
@@ -802,7 +823,9 @@ api.onMenu((n) => void runMenu(n));
 
 $('btn-toolbar').addEventListener('click', () => runCommand('toggle-toolbar'));
 $('btn-theme').addEventListener('click', toggleTheme);
-scroller().addEventListener('scroll', () => requestAnimationFrame(() => updatePageIndicator()), { passive: true });
+scroller().addEventListener('scroll', () => {
+  if (showPageNumbers) requestAnimationFrame(() => updatePageIndicator());
+}, { passive: true });
 // Clicking the empty margin below the text puts the caret at the end, like a page would.
 scroller().addEventListener('mousedown', (e) => {
   if (e.target === scroller() || e.target === $('page')) {
