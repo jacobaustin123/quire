@@ -1,8 +1,6 @@
-<p align="center">
-  <img src="docs/images/icon.png" width="128" height="128" alt="Quire icon">
-</p>
-
-<h1 align="center">Quire</h1>
+<h1 align="center">
+  <img src="docs/images/icon.png" width="64" height="64" align="center" alt="">&nbsp;Quire
+</h1>
 
 <p align="center">
   A quiet editor for <code>.docx</code>, Markdown and plain text.<br>
