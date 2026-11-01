@@ -1,6 +1,7 @@
 /** Builds the TipTap editor with Quire's schema (see docs/SCHEMA.md). */
 import { Editor, getSchema, type JSONContent } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
+import Bold from '@tiptap/extension-bold';
 import Strike from '@tiptap/extension-strike';
 import Underline from '@tiptap/extension-underline';
 import TextStyle from '@tiptap/extension-text-style';
@@ -21,6 +22,13 @@ const QuireStrike = Strike.extend({
   },
 });
 
+/** Bold on ⌘B only: TipTap also binds ⇧⌘B, which belongs to View ▸ Show Page Boundaries. */
+const QuireBold = Bold.extend({
+  addKeyboardShortcuts() {
+    return { 'Mod-b': () => this.editor.commands.toggleBold() };
+  },
+});
+
 /** Quire's TipTap extensions (the document schema plus editing behaviour). */
 export function quireExtensions(baseStyle: EditorHooks['baseStyle'] = () => ({ fontFamily: '', fontSize: '' })) {
   return [
@@ -30,8 +38,10 @@ export function quireExtensions(baseStyle: EditorHooks['baseStyle'] = () => ({ f
         codeBlock: false,
         blockquote: false,
         strike: false,
+        bold: false,
         history: { depth: 500, newGroupDelay: 600 },
       }),
+      QuireBold,
       QuireStrike,
       Underline,
       TextStyle,

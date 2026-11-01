@@ -72,6 +72,7 @@
   },
   "devDependencies": {
     "@tiptap/core": "2.27.3",
+    "@tiptap/extension-bold": "^2.27.3",
     "@tiptap/extension-font-family": "2.27.3",
     "@tiptap/extension-link": "2.27.3",
     "@tiptap/extension-strike": "2.27.3",
