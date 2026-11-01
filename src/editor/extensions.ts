@@ -3,6 +3,7 @@ import { Extension, textInputRule } from '@tiptap/core';
 import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state';
 import { Fragment, Slice, type Mark as PMMark, type Node as PMNode } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
+import { closeHistory } from '@tiptap/pm/history';
 
 const MAX_INDENT = 8;
 const INDENT_TYPES = ['paragraph', 'heading'];
@@ -345,3 +346,71 @@ export const FontFamily = Extension.create({
     };
   },
 });
+
+/**
+ * Undo granularity like Word/TextEdit: ProseMirror groups everything within its time window into
+ * one undo step; here a run of Enters, a paste, and each typing run around them are separate steps.
+ * Formatting commands are separated by the app calling `closeUndoGroup` before running them.
+ */
+export const UndoGrouping = Extension.create({
+  name: 'undoGrouping',
+  priority: 1000,
+
+  addStorage() {
+    return { last: 'none' as 'none' | 'enter' | 'text' | 'paste' };
+  },
+
+  addKeyboardShortcuts() {
+    const beforeBreak = () => {
+      // Consecutive Enters stay one step; the first one closes the preceding typing run.
+      if (this.storage.last !== 'enter') closeUndoGroup(this.editor);
+      this.storage.last = 'enter';
+      return false;
+    };
+    // Formatting shortcuts handled directly by the editor (not via the menu) also start a new step.
+    const beforeCommand = () => {
+      closeUndoGroup(this.editor);
+      return false;
+    };
+    const commands = ['Mod-b', 'Mod-i', 'Mod-u', 'Mod-Shift-x', 'Mod-.', 'Mod-,', 'Mod-Shift-7', 'Mod-Shift-8',
+      'Mod-Alt-0', 'Mod-Alt-1', 'Mod-Alt-2', 'Mod-Alt-3', 'Mod-Shift-l', 'Mod-Shift-e', 'Mod-Shift-r', 'Mod-Shift-j',
+      'Tab', 'Shift-Tab', 'Mod-]', 'Mod-['];
+    return {
+      Enter: beforeBreak,
+      'Shift-Enter': beforeBreak,
+      'Mod-Enter': beforeBreak,
+      ...Object.fromEntries(commands.map((k) => [k, beforeCommand])),
+    };
+  },
+
+  addProseMirrorPlugins() {
+    const storage = this.storage;
+    const editor = this.editor;
+    return [
+      new Plugin({
+        key: new PluginKey('undoGrouping'),
+        props: {
+          handleTextInput: () => {
+            if (storage.last !== 'text') closeUndoGroup(editor);
+            storage.last = 'text';
+            return false;
+          },
+          handleDOMEvents: {
+            paste: () => {
+              closeUndoGroup(editor);
+              storage.last = 'paste';
+              return false;
+            },
+          },
+        },
+      }),
+    ];
+  },
+});
+
+/** Ends the current undo group, so the next change becomes its own undo step. */
+export function closeUndoGroup(editor: import('@tiptap/core').Editor): void {
+  editor.view.dispatch(closeHistory(editor.state.tr));
+  const storage = (editor.storage as unknown as Record<string, { last?: string }>).undoGrouping;
+  if (storage) storage.last = 'none';
+}

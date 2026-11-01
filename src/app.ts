@@ -6,6 +6,7 @@ import type { Node as PMNode } from '@tiptap/pm/model';
 import { TextSelection } from '@tiptap/pm/state';
 import { createEditor } from './editor';
 import { collapsedDoc } from './editor/math';
+import { closeUndoGroup } from './editor/extensions';
 import { attachTypewriter } from './editor/typewriter';
 import { searchState, selectCurrent, setQuery, step } from './editor/search';
 import { fingerprint } from './formats/fingerprint';
@@ -730,8 +731,14 @@ function toggleList(kind: 'bullet' | 'ordered'): void {
   (kind === 'bullet' ? ch.toggleBulletList() : ch.toggleOrderedList()).run();
 }
 
+/** Commands that change the document; each becomes its own undo step. */
+const EDIT_COMMANDS = new Set(['bold', 'italic', 'underline', 'strike', 'superscript', 'subscript', 'paragraph', 'h1', 'h2', 'h3',
+  'bullet-list', 'ordered-list', 'indent', 'outdent', 'align-left', 'align-center', 'align-right', 'align-justify',
+  'size-up', 'size-down', 'math', 'clear-format']);
+
 function runCommand(name: string): void {
   if (!editor) return;
+  if (EDIT_COMMANDS.has(name)) closeUndoGroup(editor);
   const c = () => editor.chain().focus();
   switch (name) {
     case 'bold': c().toggleBold().run(); break;
