@@ -329,7 +329,10 @@ body.toolbar-open #findbar, body.toolbar-open #gotobar { top: 100px; }
   #titlebar, #toolbar, #banner, #page-indicator, .bar, #popover, .math-preview { display: none !important; }
   #scroller { overflow: visible; }
   #page { width: auto; max-width: none; padding: 0; margin: 0; zoom: 1; }
-  .ProseMirror { min-height: 0; color: #000; }
+  /* Never print editing state: the caret, a selection, or ProseMirror's between-blocks cursor. */
+  .ProseMirror { min-height: 0; color: #000; caret-color: transparent; }
+  .ProseMirror ::selection, .ProseMirror::selection { background: transparent; }
+  .ProseMirror-gapcursor { display: none !important; }
   .ProseMirror a { color: #000; }
   .ProseMirror .search-hit { background: none; }
   .ProseMirror h1, .ProseMirror h2, .ProseMirror h3 { break-after: avoid; }
