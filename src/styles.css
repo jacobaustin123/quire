@@ -236,9 +236,9 @@ body.show-bounds #page::before {
   border: 1px solid var(--bounds); border-bottom: 0;
 }
 /* The page's top edge sits a little below the bars (so it doesn't merge with their rule), with a
-   1in top margin above the text like a printed page. Bottom stays open: the page runs on. */
+   top margin above the text (a bit under a printed 1in, which looks too deep on screen). Bottom stays open: the page runs on. */
 body.show-bounds #page { margin-top: 24px; }
-body.show-bounds:not(.typewriter) #page { padding-top: 1in; }
+body.show-bounds:not(.typewriter) #page { padding-top: 0.65in; }
 .ProseMirror {
   outline: none;
   font-family: var(--doc-font);
