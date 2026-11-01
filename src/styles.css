@@ -226,15 +226,19 @@ body.toolbar-open #toolbar { display: flex; animation: tb-fade 0.12s ease-out fo
      indicator) match print. */
   width: 6.5in; max-width: calc((100vw - 48px) / var(--doc-zoom, 1.15)); margin: 0 auto; padding: 56px 0 45vh;
 }
-/* Page edges, like Word: a Letter page is the 6.5in text column plus 1in margins either side.
+/* Page edges, like Word (sides and top): a Letter page is the 6.5in text column plus 1in margins either side.
    In a window too narrow for that, the lines pull in to stay just inside the window. */
 #page { position: relative; }
 body.show-bounds #page::before {
   --edge: min(1in, (100vw / var(--doc-zoom, 1.15) - 100%) / 2 - 4px);
   content: ''; position: absolute; top: 0; bottom: 0; pointer-events: none;
   left: calc(-1 * var(--edge)); right: calc(-1 * var(--edge));
-  border-left: 1px solid var(--bounds); border-right: 1px solid var(--bounds);
+  border: 1px solid var(--bounds); border-bottom: 0;
 }
+/* The page's top edge sits a little below the bars (so it doesn't merge with their rule), with a
+   1in top margin above the text like a printed page. Bottom stays open: the page runs on. */
+body.show-bounds #page { margin-top: 24px; }
+body.show-bounds:not(.typewriter) #page { padding-top: 1in; }
 .ProseMirror {
   outline: none;
   font-family: var(--doc-font);
