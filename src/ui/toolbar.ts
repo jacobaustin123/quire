@@ -140,6 +140,17 @@ export function buildToolbar(root: HTMLElement, editor: Editor, hooks: ToolbarHo
     if (e.key === 'Escape') { e.preventDefault(); editor.commands.focus(); }
   });
   size.addEventListener('change', applySize);
+  // Clicking into the size box selects the whole number, so typing replaces it. The mouseup that
+  // follows the focusing click would otherwise collapse the selection back to a caret.
+  let justFocused = false;
+  size.addEventListener('focus', () => {
+    size.select();
+    justFocused = true;
+  });
+  size.addEventListener('mouseup', (e) => {
+    if (justFocused) e.preventDefault();
+    justFocused = false;
+  });
   sizeWrap.append(down, size, up);
   root.append(sizeWrap);
   sep();
