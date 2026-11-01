@@ -31,6 +31,7 @@ const ICONS: Record<string, string> = {
   outdent: '<path d="M4 5h12M9 9h7M9 12h7M4 16h12M6.5 8.5 4 10.5l2.5 2"/>',
   indent: '<path d="M4 5h12M9 9h7M9 12h7M4 16h12M4 8.5l2.5 2-2.5 2"/>',
   minus: '<path d="M6 10h8"/>',
+  more: '<circle cx="5" cy="10" r="1.1" class="fill"/><circle cx="10" cy="10" r="1.1" class="fill"/><circle cx="15" cy="10" r="1.1" class="fill"/>',
   plus: '<path d="M6 10h8M10 6v8"/>',
 };
 
@@ -94,7 +95,15 @@ export function buildToolbar(root: HTMLElement, editor: Editor, hooks: ToolbarHo
     e.innerHTML = html;
     return e;
   };
-  const sep = () => root.append(mk('span', 'tb-sep'));
+  // Items go into groups so a group (with its leading separator) can be collapsed as one.
+  let target: HTMLElement = root;
+  const group = (withSep = true) => {
+    target = mk('span', 'tb-group');
+    if (withSep) target.append(mk('span', 'tb-sep'));
+    root.append(target);
+    return target;
+  };
+  const sep = () => target.append(mk('span', 'tb-sep'));
   const buttons = new Map<string, HTMLButtonElement>();
   const button = (cmd: string, html: string, title: string) => {
     const b = mk('button', 'ghost', html);
@@ -106,7 +115,8 @@ export function buildToolbar(root: HTMLElement, editor: Editor, hooks: ToolbarHo
       hooks.run(cmd);
     });
     buttons.set(cmd, b);
-    root.append(b);
+    target.append(b);
+    return b;
   };
 
   const STYLES: DropdownOption[] = [
@@ -121,8 +131,7 @@ export function buildToolbar(root: HTMLElement, editor: Editor, hooks: ToolbarHo
     options: () => STYLES,
     onSelect: (v) => hooks.run(v === 'p' ? 'paragraph' : v),
   });
-  root.append(style.el);
-  sep();
+  group(false).append(style.el);
 
   // The document's own font is listed even if it isn't one of ours, so it can be picked back.
   let currentFont = '';
@@ -135,7 +144,7 @@ export function buildToolbar(root: HTMLElement, editor: Editor, hooks: ToolbarHo
     },
     onSelect: (f) => hooks.setFont(f),
   });
-  root.append(font.el);
+  group().append(font.el);
 
   const sizeWrap = mk('div', 'tb-size');
   const down = mk('button', 'ghost', icon('minus'));
@@ -169,46 +178,107 @@ export function buildToolbar(root: HTMLElement, editor: Editor, hooks: ToolbarHo
     justFocused = false;
   });
   sizeWrap.append(down, size, up);
-  root.append(sizeWrap);
-  sep();
+  target.append(sizeWrap);
 
+  group();
   button('bold', '<span class="glyph">B</span>', 'Bold (⌘B)');
   button('italic', '<span class="glyph i">I</span>', 'Italic (⌘I)');
   button('underline', '<span class="glyph u">U</span>', 'Underline (⌘U)');
-  button('strike', '<span class="glyph s">S</span>', 'Strikethrough (⇧⌘X)');
-  sep();
+  const strike = button('strike', '<span class="glyph s">S</span>', 'Strikethrough (⇧⌘X)');
+  const alignGroup = group();
   button('align-left', icon('align-left'), 'Align left (⇧⌘L)');
   button('align-center', icon('align-center'), 'Center (⇧⌘E)');
   button('align-right', icon('align-right'), 'Align right (⇧⌘R)');
   button('align-justify', icon('align-justify'), 'Justify (⇧⌘J)');
-  sep();
+  const listGroup = group();
   button('bullet-list', icon('bullet-list'), 'Bulleted list (⇧⌘8)');
   button('ordered-list', icon('ordered-list'), 'Numbered list (⇧⌘7)');
   // Line & paragraph spacing, like Word/Google Docs: applies to the selected paragraphs.
   const LINES: [number, string][] = [[1, 'Single'], [1.15, '1.15'], [1.5, '1.5'], [2, 'Double']];
   const AFTER: [number, string][] = [[0, 'No space after paragraph'], [6, '6 pt after paragraph'], [12, '12 pt after paragraph']];
   const near = (a: number, b: number) => Math.abs(a - b) < 0.03;
+  const spacingOptions = (): DropdownOption[] => {
+    const cur = currentSpacing(editor, hooks.baseLineSpacing(), hooks.baseParagraphSpacing());
+    return [
+      ...LINES.map(([v, label]) => ({ value: `line:${v}`, label, checked: cur.line !== null && near(cur.line, v) })),
+      ...AFTER.map(([v, label], i) => ({ value: `after:${v}`, label, checked: cur.after !== null && near(cur.after, v), separatorBefore: i === 0 })),
+    ];
+  };
+  const applySpacing = (v: string) => {
+    const [kind, n] = v.split(':');
+    const ch = editor.chain().focus();
+    (kind === 'line' ? ch.setLineSpacing(Number(n)) : ch.setSpaceAfter(Number(n))).run();
+  };
   const spacing = createDropdown({
     className: 'spacing',
     title: 'Line & paragraph spacing',
     buttonHtml: icon('spacing'),
-    options: () => {
-      const cur = currentSpacing(editor, hooks.baseLineSpacing(), hooks.baseParagraphSpacing());
-      return [
-        ...LINES.map(([v, label]) => ({ value: `line:${v}`, label, checked: cur.line !== null && near(cur.line, v) })),
-        ...AFTER.map(([v, label], i) => ({ value: `after:${v}`, label, checked: cur.after !== null && near(cur.after, v), separatorBefore: i === 0 })),
-      ];
-    },
-    onSelect: (v) => {
-      const [kind, n] = v.split(':');
-      const ch = editor.chain().focus();
-      (kind === 'line' ? ch.setLineSpacing(Number(n)) : ch.setSpaceAfter(Number(n))).run();
-    },
+    options: () => spacingOptions(),
+    onSelect: (v) => applySpacing(v),
   });
-  root.append(spacing.el);
-  sep();
+  target.append(spacing.el);
+  const indentGroup = group();
   button('outdent', icon('outdent'), 'Decrease indent (⇧⇥)');
   button('indent', icon('indent'), 'Increase indent (⇥)');
+
+  // ---- Collapsing for narrow windows ----
+  // Stages applied in order until the bar fits; everything collapsed stays reachable from "⋯".
+  const alignOn = (a: string) => (a === 'left' ? !['center', 'right', 'justify'].some((x) => editor.isActive({ textAlign: x })) : editor.isActive({ textAlign: a }));
+  const MENU: Record<string, () => DropdownOption[]> = {
+    strike: () => [{ value: 'strike', label: 'Strikethrough', checked: editor.isActive('strike') }],
+    align: () => (['left', 'center', 'right', 'justify'] as const).map((a) => ({
+      value: `align-${a}`, label: a === 'justify' ? 'Justify' : a === 'center' ? 'Center' : `Align ${a}`, checked: alignOn(a),
+    })),
+    lists: () => [
+      { value: 'bullet-list', label: 'Bulleted list', checked: editor.isActive('bulletList') },
+      { value: 'ordered-list', label: 'Numbered list', checked: editor.isActive('orderedList') },
+      ...spacingOptions().map((o) => ({ ...o, label: o.value.startsWith('line:') ? `Line spacing: ${o.label}` : o.label })),
+    ],
+    indent: () => [
+      { value: 'outdent', label: 'Decrease indent' },
+      { value: 'indent', label: 'Increase indent' },
+    ],
+  };
+  const STAGES: { hide?: HTMLElement; menu?: string; cls?: string }[] = [
+    { hide: alignGroup, menu: 'align' },
+    { hide: indentGroup, menu: 'indent' },
+    { cls: 'compact-size' },
+    { cls: 'compact-font' },
+    { hide: listGroup, menu: 'lists' },
+    { hide: strike, menu: 'strike' },
+    { cls: 'compact-style' },
+  ];
+  let level = 0;
+  const more = createDropdown({
+    className: 'more',
+    title: 'More formatting',
+    buttonHtml: icon('more'),
+    options: () => {
+      // Listed in bar order, each collapsed section separated from the previous one.
+      const order = ['strike', 'align', 'lists', 'indent'];
+      const shown = STAGES.slice(0, level).map((st) => st.menu).filter((m): m is string => !!m);
+      return order.filter((m) => shown.includes(m)).flatMap((m, i) => MENU[m]().map((o, j) => ({ ...o, separatorBefore: i > 0 && j === 0 ? true : o.separatorBefore })));
+    },
+    onSelect: (v) => (v.includes(':') ? applySpacing(v) : hooks.run(v)),
+  });
+  const moreGroup = group();
+  moreGroup.append(more.el);
+  const apply = (n: number) => {
+    level = n;
+    STAGES.forEach((st, i) => {
+      if (st.hide) st.hide.hidden = i < n;
+      if (st.cls) root.classList.toggle(st.cls, i < n);
+    });
+    moreGroup.hidden = !STAGES.slice(0, n).some((st) => st.menu);
+  };
+  const fits = () => root.scrollWidth <= root.clientWidth;
+  const relayout = () => {
+    if (!root.offsetParent) return; // bar hidden: measure when it's shown
+    let n = 0;
+    apply(0);
+    while (!fits() && n < STAGES.length) apply(++n);
+  };
+  new ResizeObserver(relayout).observe(root);
 
   return () => {
     const { fonts, sizes } = selectionStyles(editor, hooks.baseFont(), hooks.baseSize());

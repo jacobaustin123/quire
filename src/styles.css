@@ -137,7 +137,9 @@ body.dirty #doc-edited { opacity: 1; }
 /* ---------- formatting bar ---------- */
 #toolbar {
   flex: none;
-  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 2px;
+  /* No wrapping: a narrow window collapses groups into the ⋯ menu instead (toolbar.ts). 'safe'
+     keeps any overflow on the right, where scrollWidth can measure it. */
+  display: flex; align-items: center; justify-content: safe center; flex-wrap: nowrap; gap: 2px; overflow: hidden;
   padding: 0 16px; height: 44px; opacity: 0; display: none;
   border-bottom: 1px solid var(--toolbar-rule);
   user-select: none;
@@ -145,6 +147,14 @@ body.dirty #doc-edited { opacity: 1; }
 }
 /* Shown instantly: animating height would re-lay out the whole document every frame. */
 body.toolbar-open #toolbar { display: flex; animation: tb-fade 0.12s ease-out forwards; }
+.tb-group { display: flex; align-items: center; gap: 2px; flex: none; }
+#toolbar [hidden] { display: none !important; }
+#toolbar.compact-size .tb-size .ghost { display: none; }
+#toolbar.compact-font .tb-dropdown.font { width: 112px; }
+#toolbar.compact-style .tb-dropdown.style { width: 84px; }
+.tb-dropdown.more { width: auto; padding: 0 6px; }
+.tb-dropdown.more::after { display: none; }
+.tb-dropdown.more svg { display: block; }
 @keyframes tb-fade { from { opacity: 0; } to { opacity: 1; } }
 .tb-sep { width: 0.5px; height: 18px; background: var(--rule); margin: 0 8px; }
 .tb-select, .tb-size input {

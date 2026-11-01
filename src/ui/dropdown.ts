@@ -112,6 +112,9 @@ export function createDropdown(opts: {
     menu.style.top = `${Math.round(r.bottom + 4)}px`;
     menu.style.minWidth = `${Math.round(r.width)}px`;
     menu.style.maxHeight = `${Math.max(160, window.innerHeight - r.bottom - 16)}px`;
+    // Near the right edge (e.g. the ⋯ menu in a narrow window), shift left so the menu stays visible.
+    const overflow = menu.getBoundingClientRect().right - (window.innerWidth - 8);
+    if (overflow > 0) menu.style.left = `${Math.max(8, Math.round(r.left - overflow))}px`;
     button.classList.add('open');
     highlight(active);
     rows[active]?.scrollIntoView({ block: 'nearest' });
