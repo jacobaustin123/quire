@@ -1,7 +1,7 @@
 {
   "name": "quire",
   "productName": "Quire",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A quiet editor for docx, markdown, and plain text.",
   "author": "Jacob Austin",
   "license": "MIT",
