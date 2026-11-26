@@ -30,6 +30,7 @@ const ICONS: Record<string, string> = {
   'ordered-list': '<path d="M4.2 4.8 5.3 4.3v3.4M4.2 7.7h2.2M4.2 11.4c.2-.6.7-.9 1.2-.9.6 0 1 .4 1 .9 0 .9-2.3 1.6-2.3 2.6h2.4" stroke-width="1.1"/><path d="M8.5 6H16M8.5 10H16M8.5 14H16"/>',
   outdent: '<path d="M4 5h12M9 9h7M9 12h7M4 16h12M6.5 8.5 4 10.5l2.5 2"/>',
   indent: '<path d="M4 5h12M9 9h7M9 12h7M4 16h12M4 8.5l2.5 2-2.5 2"/>',
+  image: '<rect x="3.5" y="4.5" width="13" height="11" rx="1.5"/><circle cx="7.3" cy="8.2" r="1.1"/><path d="m4 14 3.6-3.4 2.4 2.2 3-3.2 3.3 3.4"/>',
   minus: '<path d="M6 10h8"/>',
   more: '<circle cx="5" cy="10" r="1.1" class="fill"/><circle cx="10" cy="10" r="1.1" class="fill"/><circle cx="15" cy="10" r="1.1" class="fill"/>',
   plus: '<path d="M6 10h8M10 6v8"/>',
@@ -221,6 +222,9 @@ export function buildToolbar(root: HTMLElement, editor: Editor, hooks: ToolbarHo
   button('outdent', icon('outdent'), 'Decrease indent (⇧⇥)');
   button('indent', icon('indent'), 'Increase indent (⇥)');
 
+  const imageGroup = group();
+  button('image', icon('image'), 'Insert image (⌥⌘I)');
+
   // ---- Collapsing for narrow windows ----
   // Stages applied in order until the bar fits; everything collapsed stays reachable from "⋯".
   const alignOn = (a: string) => (a === 'left' ? !['center', 'right', 'justify'].some((x) => editor.isActive({ textAlign: x })) : editor.isActive({ textAlign: a }));
@@ -238,10 +242,12 @@ export function buildToolbar(root: HTMLElement, editor: Editor, hooks: ToolbarHo
       { value: 'outdent', label: 'Decrease indent' },
       { value: 'indent', label: 'Increase indent' },
     ],
+    image: () => [{ value: 'image', label: 'Insert image…' }],
   };
   const STAGES: { hide?: HTMLElement; menu?: string; cls?: string }[] = [
     { hide: alignGroup, menu: 'align' },
     { hide: indentGroup, menu: 'indent' },
+    { hide: imageGroup, menu: 'image' },
     { cls: 'compact-size' },
     { cls: 'compact-font' },
     { hide: listGroup, menu: 'lists' },
@@ -255,7 +261,7 @@ export function buildToolbar(root: HTMLElement, editor: Editor, hooks: ToolbarHo
     buttonHtml: icon('more'),
     options: () => {
       // Listed in bar order, each collapsed section separated from the previous one.
-      const order = ['strike', 'align', 'lists', 'indent'];
+      const order = ['strike', 'align', 'lists', 'indent', 'image'];
       const shown = STAGES.slice(0, level).map((st) => st.menu).filter((m): m is string => !!m);
       return order.filter((m) => shown.includes(m)).flatMap((m, i) => MENU[m]().map((o, j) => ({ ...o, separatorBefore: i > 0 && j === 0 ? true : o.separatorBefore })));
     },

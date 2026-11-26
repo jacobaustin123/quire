@@ -7,6 +7,7 @@ import { TextSelection } from '@tiptap/pm/state';
 import { createEditor } from './editor';
 import { collapsedDoc } from './editor/math';
 import { closeUndoGroup } from './editor/extensions';
+import { insertImages, isImageFile, readImage, type ImageAttrs } from './editor/image';
 import { attachTypewriter } from './editor/typewriter';
 import { searchState, selectCurrent, setQuery, setVisibleRange, step, visibleRange } from './editor/search';
 import { fingerprint } from './formats/fingerprint';
@@ -45,6 +46,8 @@ interface QuireApi {
   openPath(p: string): void;
   pathForFile(f: File): string;
   toggleTheme(): void;
+  chooseImages(): Promise<{ name: string; bytes: Uint8Array }[]>;
+  convertImage(bytes: Uint8Array): Promise<Uint8Array>;
   onCommand(fn: (name: string) => void): void;
   onMenu(fn: (name: string) => void): void;
 }
@@ -167,6 +170,7 @@ async function boot(): Promise<void> {
     onSelection: () => scheduleToolbarSync(),
     onOpenLink: (href) => api.openExternal(href),
     onDropFiles: (files) => files.forEach((f) => api.openPath(api.pathForFile(f))),
+    onImageFiles: (files, pos) => void addImages(files, pos),
     baseStyle: () => ({ fontFamily: doc.meta.baseFont, fontSize: String(doc.meta.baseSize) }),
     onContentError: (err) => {
       doc.loadFailed = true;
@@ -251,6 +255,37 @@ function replaceWord({ x, y, word, replacement }: { x: number; y: number; word: 
   editor.view.focus();
 }
 
+// ---------- images ----------
+
+/** Reads image files and inserts them at `pos` (a drop) or the cursor. */
+async function addImages(files: File[], pos?: number): Promise<void> {
+  if (doc.format === 'txt' && doc.path) {
+    banner('Plain text files can’t hold pictures. Use Save As to make this a Word document first.');
+    return;
+  }
+  const images: ImageAttrs[] = [];
+  const failed: string[] = [];
+  for (const f of files) {
+    try {
+      images.push(await readImage(f, (b) => api.convertImage(b)));
+    } catch (err) {
+      console.error(err);
+      failed.push(f.name);
+    }
+  }
+  insertImages(editor.view, images, pos);
+  if (failed.length) banner(`Couldn’t read ${failed.map((n) => `“${n}”`).join(', ')} as a picture.`);
+}
+
+async function chooseImages(): Promise<void> {
+  const picked = await api.chooseImages();
+  if (picked.length) await addImages(picked.map((p) => new File([new Uint8Array(p.bytes)], p.name)));
+}
+
+function hasImages(node: JSONNode): boolean {
+  return node.type === 'image' || (node.content ?? []).some(hasImages);
+}
+
 // ---------- external changes ----------
 
 /** Whether the banner currently shows an external-change conflict (cleared by a successful save). */
@@ -304,6 +339,8 @@ function onFileChanged({ missing }: { missing: boolean }): void {
 
 let recoveryTimer: number | undefined;
 let recoveryIdle: number | undefined;
+/** Size of the last snapshot written. */
+let recoverySize = 0;
 
 function cancelRecoveryWrite(): void {
   window.clearTimeout(recoveryTimer);
@@ -331,7 +368,8 @@ function onDocChanged(): void {
   }
   // Not debounced-to-idle: continuous typing still gets snapshotted every RECOVERY_DELAY_MS.
   if (recoveryTimer === undefined) {
-    recoveryTimer = window.setTimeout(writeRecovery, RECOVERY_DELAY_MS);
+    // With large pictures each snapshot is megabytes, so take them less often.
+    recoveryTimer = window.setTimeout(writeRecovery, recoverySize > 2_000_000 ? RECOVERY_DELAY_MS * 6 : RECOVERY_DELAY_MS);
   }
 }
 
@@ -343,7 +381,9 @@ function writeRecovery(): void {
       recoveryIdle = undefined;
       // Re-checked here: a save may have finished while this was waiting for idle time.
       if (!doc.dirty || doc.saving) return;
-      api.writeRecovery(JSON.stringify({ version: 1, path: doc.path, format: doc.format, name: doc.name, savedAt: Date.now(), meta: doc.meta, doc: collapsedDoc(editor.state).toJSON() }));
+      const json = JSON.stringify({ version: 1, path: doc.path, format: doc.format, name: doc.name, savedAt: Date.now(), meta: doc.meta, doc: collapsedDoc(editor.state).toJSON() });
+      recoverySize = json.length;
+      api.writeRecovery(json);
     },
     { timeout: 1000 },
   );
@@ -375,6 +415,10 @@ async function save(saveAs = false): Promise<boolean> {
       return false;
     }
     format = formatForPath(path);
+  }
+  if (format === 'txt' && hasImages(editor.state.doc.toJSON() as JSONNode)) {
+    const ok = await api.confirm('Save without pictures?', 'Plain text files can’t hold pictures, so they won’t be in the saved file.', 'Save Without Pictures');
+    if (!ok) return false;
   }
   doc.saving = true;
   cancelRecoveryWrite();
@@ -784,6 +828,7 @@ function runCommand(name: string): void {
     case 'size-up': bumpSize(1); break;
     case 'size-down': bumpSize(-1); break;
     case 'link': editLink(); break;
+    case 'image': void chooseImages(); break;
     case 'math': c().insertMath().run(); break;
     case 'clear-format': c().unsetAllMarks().run(); break;
     case 'toggle-toolbar': setToolbarOpen(!document.body.classList.contains('toolbar-open')); syncToolbar(); break;
@@ -936,8 +981,13 @@ window.addEventListener('keyup', (e) => {
 window.addEventListener('blur', () => document.body.classList.remove('cmd-down'));
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => {
+  const handled = e.defaultPrevented; // dropped on the text: the editor dealt with it
   e.preventDefault();
-  for (const f of Array.from(e.dataTransfer?.files ?? [])) api.openPath(api.pathForFile(f));
+  if (handled || !editor || editor.view.dragging) return;
+  const files = Array.from(e.dataTransfer?.files ?? []);
+  const images = files.filter(isImageFile);
+  if (images.length) void addImages(images);
+  for (const f of files) if (!isImageFile(f)) api.openPath(api.pathForFile(f));
 });
 
 boot().catch((err) => {

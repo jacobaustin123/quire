@@ -29,6 +29,7 @@ function inlineText(nodes: PMNode[] | undefined, indent: string): string {
   for (const node of nodes ?? []) {
     if (node.type === 'text') out += node.text ?? '';
     else if (node.type === 'hardBreak') out += `\n${indent}`;
+    else if (node.type === 'image') out += node.attrs?.alt ? `[Image: ${String(node.attrs.alt)}]` : '[Image]';
     else if (node.type === 'mathInline') out += `$${String(node.attrs?.latex ?? '')}$`;
   }
   return out;

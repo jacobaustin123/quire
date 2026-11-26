@@ -1,8 +1,10 @@
 /** DOCX -> Quire document model. */
 
-import { lossyFeatures } from './fidelity';
+import { hasLossy, lossyFeatures } from './fidelity';
 import JSZip from 'jszip';
+import { dataUriFor } from '../images';
 import type { DocMeta, LoadedDoc, PMMark, PMNode } from '../model';
+import { drawingsIn, readSimplePicture } from './image';
 import {
   Numbering,
   StyleSheet,
@@ -44,6 +46,10 @@ interface Ctx {
   counters: Map<string, number[]>;
   /** Set while converting a paragraph that holds a drawing / picture / embedded object. */
   sawObject: boolean;
+  /** Image relationship id -> data URI, for pictures in formats Quire can show. */
+  images: Map<string, string>;
+  /** Plain pictures found in the paragraph being converted, in order. */
+  paraImages: PMNode[];
   /** Set when a paragraph may contain nested paragraphs (objects, AlternateContent). */
   sawComplex: boolean;
   /** The document's default paragraph spacing (twips, multiple); paragraphs differing get attrs. */
@@ -117,10 +123,16 @@ export async function importDocx(
     counters: new Map(),
     sawObject: false,
     sawComplex: false,
+    images: new Map(),
+    paraImages: [],
     baseSpacing: { before: basePara.spacingBefore ?? 0, after: basePara.spacingAfter ?? 0, line: basePara.lineMultiple ?? 1 },
   };
   for (const r of rels) {
     if (r.type === REL_TYPES.hyperlink || relTypeIs(r.type, 'hyperlink')) ctx.links.set(r.id, r.target);
+    else if (relTypeIs(r.type, 'image')) {
+      const uri = dataUriFor((await zip.file(resolvePartPath(docDir, r.target))?.async('base64')) ?? '');
+      if (uri) ctx.images.set(r.id, uri);
+    }
   }
 
   const meta: DocMeta = {
@@ -137,6 +149,21 @@ export async function importDocx(
   const content = buildLists(items);
   const doc: PMNode = { type: 'doc', content: content.length ? content : [{ type: 'paragraph' }] };
   return { doc, meta, original: bytes, lossy: lossyFeatures(docXml, doc) };
+}
+
+/**
+ * Attaches each picture's verbatim XML to its node, so saving reproduces it exactly. False when the
+ * paragraph must stay opaque instead: it also holds something Quire can't keep (a footnote, a field…).
+ */
+function keepPictures(xml: string, images: PMNode[]): boolean {
+  if (!images.length) return true;
+  const drawings = drawingsIn(xml);
+  if (drawings.length !== images.length) return false;
+  let rest = xml;
+  for (const d of drawings) rest = rest.replace(d, () => '');
+  if (hasLossy(rest)) return false;
+  images.forEach((n, i) => (n.attrs = { ...n.attrs, xml: drawings[i] }));
+  return true;
 }
 
 function rawItem(xml: string, kind: 'table' | 'image' | 'other', el: Element): Item {
@@ -156,9 +183,10 @@ function collectBody(body: Element, ctx: Ctx, out: Item[], slicer: BodySlicer): 
     const name = el.nodeName;
     if (name === 'w:p') {
       ctx.sawObject = ctx.sawComplex = false;
+      ctx.paraImages = [];
       const item = convertParagraph(el, ctx);
       const xml = slicer.take(el, !ctx.sawComplex);
-      if (ctx.sawObject && xml !== null) {
+      if (xml !== null && (ctx.sawObject || !keepPictures(xml, ctx.paraImages))) {
         out.push(rawItem(xml, 'image', el));
       } else out.push(item);
       continue;
@@ -599,6 +627,16 @@ function convertRun(
     if (name === 'w:rPr') {
       rPr = el;
       continue;
+    }
+    if (name === 'w:drawing' && link === null && !fields.length) {
+      const pic = readSimplePicture(el);
+      const src = pic && ctx.images.get(pic.relId);
+      if (pic && src) {
+        const node: PMNode = { type: 'image', attrs: { src, width: pic.width, height: pic.height, alt: pic.alt } };
+        ctx.paraImages.push(node);
+        out.addNode(node);
+        continue;
+      }
     }
     if (OBJECT_TAGS.has(name)) {
       ctx.sawObject = ctx.sawComplex = true;

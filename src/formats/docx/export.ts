@@ -1,7 +1,9 @@
 /** Quire document model -> DOCX. */
 
 import JSZip from 'jszip';
+import { base64Of, imageTypeOf } from '../images';
 import type { DocMeta, PMMark, PMNode } from '../model';
+import { blipRel, docPrIds, newDrawing, resizeDrawing } from './image';
 import { MATH_STYLE_ID, mainDocumentPath } from './import';
 import { KNOWN_NAMESPACES, relIdsIn, undeclaredPrefixes } from './raw';
 import { REL_TYPES, dirOf, escapeXml, parseRels, relTypeIs, relsPathFor, resolvePartPath } from './xml';
@@ -103,10 +105,79 @@ function signature(list: PMNode, depth: number, prefix: string): string {
 
 /** Collects the verbatim XML of every docxRaw block in the document. */
 function collectRaw(n: PMNode, out: string[] = []): string[] {
-  if (n.type === 'docxRaw') out.push(String(n.attrs?.xml ?? ''));
+  if (n.type === 'docxRaw' || (n.type === 'image' && n.attrs?.xml)) out.push(String(n.attrs?.xml ?? ''));
   else for (const c of n.content ?? []) if (c.type !== 'text') collectRaw(c, out);
   return out;
 }
+
+/** Writes pictures: verbatim where the original package still holds them, otherwise as new media. */
+class ImageWriter {
+  /** New media parts by data URI, so a picture used twice is stored once. */
+  readonly added = new Map<string, { relId: string; name: string; base64: string; ext: string; mime: string }>();
+  private readonly usedIds = new Set<number>();
+  private nextId: number;
+
+  /**
+   * Args:
+   *   rawXml: All verbatim XML in the document (its object ids are taken).
+   *   originals: Image relationship id -> base64 bytes in the original package.
+   *   takenNames: Media file names already in the package.
+   *   newRelId: Allocates relationship ids.
+   */
+  constructor(
+    rawXml: string,
+    private readonly originals: Map<string, string>,
+    private readonly takenNames: Set<string>,
+    private readonly newRelId: () => string,
+  ) {
+    this.nextId = docPrIds(rawXml).reduce((a, b) => Math.max(a, b), 0) + 1;
+  }
+
+  run(n: PMNode): string {
+    const a = n.attrs ?? {};
+    const width = Number(a.width) || 1;
+    const height = Number(a.height) || 1;
+    const base64 = base64Of(a.src);
+    const xml = typeof a.xml === 'string' ? a.xml : '';
+    const rel = xml ? blipRel(xml) : null;
+    const ids = docPrIds(xml);
+    // The XML is only valid with the package it came from: check it still points at these bytes
+    // (after a paste, reload or crash recovery it might not) and that it isn't a second copy.
+    if (rel && this.originals.get(rel) === base64 && !ids.some((i) => this.usedIds.has(i))) {
+      for (const i of ids) this.usedIds.add(i);
+      return `<w:r>${resizeDrawing(xml, width, height)}</w:r>`;
+    }
+    const type = imageTypeOf(base64);
+    if (!type) return '';
+    const src = String(a.src);
+    let part = this.added.get(src);
+    if (!part) {
+      let k = 1;
+      while (this.takenNames.has(`quire-image${k}.${type.ext}`)) k++;
+      const name = `quire-image${k}.${type.ext}`;
+      this.takenNames.add(name);
+      part = { relId: this.newRelId(), name, base64, ext: type.ext, mime: type.mime };
+      this.added.set(src, part);
+    }
+    return `<w:r>${newDrawing(part.relId, this.nextId++, width, height, String(a.alt ?? ''))}</w:r>`;
+  }
+
+  /** Adds the new media to the package; returns its relationships and the updated content types. */
+  store(zip: JSZip, docDir: string, ctXml: string): { rels: string; ctXml: string } {
+    let rels = '';
+    for (const p of this.added.values()) {
+      zip.file(resolvePartPath(docDir, `media/${p.name}`), p.base64, { base64: true });
+      rels += relXml(p.relId, IMAGE_REL, `media/${p.name}`, false);
+      if (!new RegExp(`<Default\\b[^>]*Extension="${p.ext}"`, 'i').test(ctXml)) {
+        // Defaults come before Overrides in the schema.
+        ctXml = ctXml.replace(/(<Types\b[^>]*>)/, `$1<Default Extension="${p.ext}" ContentType="${p.mime}"/>`);
+      }
+    }
+    return { rels, ctXml };
+  }
+}
+
+const IMAGE_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image';
 
 /** Adds xmlns declarations for prefixes raw XML needs but `rootTag` lacks. */
 function declareNamespaces(rootTag: string, rawXml: string): string {
@@ -134,6 +205,7 @@ class BodyWriter {
     private readonly styles: StyleIds,
     private readonly numbering: NumberingBuilder,
     private readonly newRelId: () => string,
+    private readonly images: ImageWriter,
   ) {}
 
   blocks(nodes: PMNode[]): void {
@@ -240,6 +312,7 @@ class BodyWriter {
       }
       if (n.type === 'text') this.parts.push(this.textRun(n.text ?? '', n.marks, href !== null));
       else if (n.type === 'hardBreak') this.parts.push('<w:r><w:br/></w:r>');
+      else if (n.type === 'image') this.parts.push(this.images.run(n));
       else if (n.type === 'mathInline') this.parts.push(mathRun('$' + String(n.attrs?.latex ?? '') + '$'));
       else if (n.content) this.inline(n.content);
     }
@@ -503,7 +576,9 @@ async function exportFresh(doc: PMNode, meta: DocMeta): Promise<Uint8Array> {
   const { ids } = patchStyles(stylesXml);
   const taken = new Set(['rId1', 'rId2', 'rId3']);
   let nb: NumberingBuilder | null = null;
-  const writer = new BodyWriter(meta, ids, (nb = new NumberingBuilder(0, 1)), uniqueIdFactory(taken));
+  const newRelId = uniqueIdFactory(taken);
+  const images = new ImageWriter('', new Map(), new Set(), newRelId);
+  const writer = new BodyWriter(meta, ids, (nb = new NumberingBuilder(0, 1)), newRelId, images);
   writer.blocks(doc.content ?? []);
   const numberingXml = rebuildNumbering(EMPTY_NUMBERING, new Set(), () => nb!);
 
@@ -541,6 +616,9 @@ async function exportFresh(doc: PMNode, meta: DocMeta): Promise<Uint8Array> {
       relXml('rId3', REL_TYPES.extendedProps, 'docProps/app.xml', false) +
       '</Relationships>',
   );
+  const stored = images.store(zip, 'word', await zip.file('[Content_Types].xml')!.async('string'));
+  zip.file('[Content_Types].xml', stored.ctXml);
+  rels.push(stored.rels);
   zip.file('word/document.xml', docXml);
   zip.file('word/styles.xml', stylesXml);
   zip.file('word/numbering.xml', numberingXml);
@@ -633,10 +711,22 @@ async function exportIntoOriginal(doc: PMNode, meta: DocMeta, original: Uint8Arr
     if (/\/(header|footer|footnotes|endnotes|comments)\d*\.xml$/.test(name)) numIdsIn((await read(name)) ?? '', keepNumIds);
   }
 
+  // Bytes behind each image relationship, to confirm verbatim pictures still match.
+  const originals = new Map<string, string>();
+  const imageRels = rels.filter((r) => relTypeIs(r.type, 'image'));
+  for (const r of imageRels) {
+    const part = zip.file(resolvePartPath(docDir, r.target));
+    if (part) originals.set(r.id, await part.async('base64'));
+  }
+  const mediaDir = resolvePartPath(docDir, 'media') + '/';
+  const mediaNames = new Set(Object.keys(zip.files).filter((n) => n.startsWith(mediaDir)).map((n) => n.slice(mediaDir.length)));
+  const newRelId = uniqueIdFactory(taken);
+  const images = new ImageWriter(rawXml, originals, mediaNames, newRelId);
+
   let writer: BodyWriter | null = null;
   const newNumXml = rebuildNumbering(numXml, keepNumIds, (maxAbs, maxNum) => {
     const nb = new NumberingBuilder(maxAbs, maxNum);
-    writer = new BodyWriter(meta, patched.ids, nb, uniqueIdFactory(taken));
+    writer = new BodyWriter(meta, patched.ids, nb, newRelId, images);
     writer.blocks(doc.content ?? []);
     return nb;
   });
@@ -664,16 +754,35 @@ async function exportIntoOriginal(doc: PMNode, meta: DocMeta, original: Uint8Arr
   }
   const newDocXml = prefix + w.parts.join('') + sectPr + docXml.slice(bodyClose);
 
+  const stored = images.store(zip, docDir, ctXml);
+  ctXml = stored.ctXml;
+  // A picture deleted from the text shouldn't linger in the file, where others could extract it.
+  // Only relationships the old body used are considered; parts other files share are kept.
+  const gone = new Set(imageRels.filter((r) => oldBody.includes(`"${r.id}"`) && !newDocXml.includes(`"${r.id}"`)).map((r) => r.id));
+
   const newRels =
     relsXml.slice(0, relsXml.indexOf('>', relsXml.indexOf('<Relationships')) + 1).replace(/\/>$/, '>') +
-    keptRels.map((r) => r.raw).join('') +
+    keptRels.filter((r) => !gone.has(r.id)).map((r) => r.raw).join('') +
     extraRels.join('') +
+    stored.rels +
     [...w.links].map(([href, id]) => relXml(id, REL_TYPES.hyperlink, href, true)).join('') +
     '</Relationships>';
   const relsHead = relsXml.startsWith('<?xml') ? '' : XML_DECL;
 
   zip.file(docPath, newDocXml);
   zip.file(relsPath, relsHead + newRels);
+  if (gone.size) {
+    const stillUsed = new Set<string>();
+    for (const name of Object.keys(zip.files)) {
+      const m = /^(.*?)_rels\/([^/]+)\.rels$/.exec(name);
+      if (!m) continue;
+      for (const r of parseRels((await read(name)) ?? '')) stillUsed.add(resolvePartPath(m[1].replace(/\/$/, ''), r.target));
+    }
+    for (const r of imageRels) {
+      const part = resolvePartPath(docDir, r.target);
+      if (gone.has(r.id) && !stillUsed.has(part)) zip.remove(part);
+    }
+  }
   zip.file(stylesPath, patched.xml);
   zip.file(numPath, newNumXml);
   if (ctXml) zip.file('[Content_Types].xml', ctXml);

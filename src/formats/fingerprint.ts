@@ -19,6 +19,9 @@ function walk(node: PMNode, out: string[]): void {
     case 'mathBlock':
       out.push(`$${String(node.attrs?.latex ?? '')}$`);
       return;
+    case 'image':
+      out.push(`[img:${node.attrs?.width}x${node.attrs?.height}:${String(node.attrs?.src ?? '')}]`);
+      return;
     case 'docxRaw':
       out.push(`[raw:${String(node.attrs?.xml ?? '')}]`);
       return;
@@ -33,6 +36,6 @@ export function fingerprint(doc: PMNode): Fingerprint {
   walk(doc, parts);
   // Characters XML can't hold are stripped when a .docx is written; they're not content.
   const text = parts.join('').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, '');
-  const words = text.replace(/\[raw:[^\]]*\]/g, ' ').split(/\s+/).filter(Boolean).length;
+  const words = text.replace(/\[(raw|img):[^\]]*\]/g, ' ').split(/\s+/).filter(Boolean).length;
   return { text, words };
 }

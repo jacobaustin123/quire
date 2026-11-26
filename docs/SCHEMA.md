@@ -49,6 +49,7 @@ Attrs may be omitted when default. Empty paragraph = `{type:"paragraph"}` with n
 | `text` | `text: string` (may contain `\t` tab characters; never `\n`), `marks?: Mark[]` |
 | `hardBreak` | — (soft line break, docx `<w:br/>`, md trailing `\` newline) |
 | `mathInline` | `latex: string` (atom; no marks needed) |
+| `image` | `src: string` (data URI; PNG, JPEG or GIF), `width`, `height` (CSS px at 96 dpi), `alt: string`, `xml: string\|null` (verbatim `<w:drawing>` from the source docx, reused on save while it still matches `src`). Only plain inline pictures become images; floating, cropped or otherwise styled ones stay `docxRaw`. |
 
 ## Marks
 

@@ -36,6 +36,8 @@ contextBridge.exposeInMainWorld('quire', {
   openExternal: (url) => ipcRenderer.send('open-external', url),
   openPath: (p) => ipcRenderer.send('open-path', p),
   pathForFile: (file) => webUtils.getPathForFile(file),
+  chooseImages: () => ipcRenderer.invoke('image:choose'),
+  convertImage: (bytes) => ipcRenderer.invoke('image:convert', bytes),
   toggleTheme: () => ipcRenderer.send('toggle-theme'),
   onCommand: (fn) => ipcRenderer.on('cmd', (_e, name) => fn(name)),
   onMenu: (fn) => ipcRenderer.on('menu', (_e, name) => fn(name)),

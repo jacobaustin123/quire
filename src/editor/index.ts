@@ -10,6 +10,7 @@ import Link from '@tiptap/extension-link';
 import Superscript from '@tiptap/extension-superscript';
 import Subscript from '@tiptap/extension-subscript';
 import { FontFamily, FontSize, Indent, ListMerge, ParagraphSpacing, PasteCleanup, SmartTyping, UndoGrouping } from './extensions';
+import { QuireImage, isImageFile, pastedImageFiles } from './image';
 import { MathBlock, MathInline, MathSource } from './math';
 import { DocxRaw, ListLevel } from './raw';
 import { Search } from './search';
@@ -56,6 +57,7 @@ export function quireExtensions(baseStyle: EditorHooks['baseStyle'] = () => ({ f
       Indent,
       SmartTyping,
       PasteCleanup.configure({ baseStyle }),
+      QuireImage,
       MathSource,
       MathInline,
       MathBlock,
@@ -74,6 +76,8 @@ export interface EditorHooks {
   onSelection: () => void;
   onOpenLink: (href: string) => void;
   onDropFiles: (files: File[]) => void;
+  /** Image files pasted, or dropped at `pos`. */
+  onImageFiles: (files: File[], pos?: number) => void;
   onContentError: (error: Error) => void;
   /** The document's default font/size, so pasted text equal to it carries no redundant mark. */
   baseStyle: () => { fontFamily: string; fontSize: string };
@@ -100,11 +104,22 @@ export function createEditor(element: HTMLElement, content: JSONContent, hooks: 
         }
         return false;
       },
-      handleDrop: (_view, event) => {
+      handlePaste: (_view, event) => {
+        const files = pastedImageFiles(event.clipboardData);
+        if (!files.length) return false;
+        hooks.onImageFiles(files);
+        return true;
+      },
+      handleDrop: (view, event) => {
+        // Moving a picture within the document also offers it as a file; that's not a new one.
+        if (view.dragging) return false;
         const files = Array.from(event.dataTransfer?.files ?? []);
         if (!files.length) return false;
         event.preventDefault();
-        hooks.onDropFiles(files);
+        const images = files.filter(isImageFile);
+        const others = files.filter((f) => !isImageFile(f));
+        if (images.length) hooks.onImageFiles(images, view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos);
+        if (others.length) hooks.onDropFiles(others);
         return true;
       },
     },

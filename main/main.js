@@ -4,6 +4,8 @@
 const T0 = Date.now();
 const trace = (what) => process.env.QUIRE_TRACE && console.log(`[trace] ${what} +${Date.now() - T0}ms`);
 
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
 const { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, nativeTheme, net, protocol, shell } = require('electron');
 const { pathToFileURL } = require('node:url');
 const fs = require('node:fs');
@@ -523,6 +525,33 @@ ipcMain.handle('doc:reload', async (event) => {
   return { bytes, mtime: stat.mtimeMs };
 });
 
+ipcMain.handle('image:choose', async (event) => {
+  const res = await dialog.showOpenDialog(winFor(event), {
+    properties: ['openFile', 'multiSelections'],
+    buttonLabel: 'Insert',
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif', 'heic', 'heif', 'tif', 'tiff'] }],
+  });
+  if (res.canceled) return [];
+  return Promise.all(res.filePaths.map(async (p) => ({ name: path.basename(p), bytes: await fsp.readFile(p) })));
+});
+
+/** Converts formats Chromium can't decode (HEIC, TIFF) with macOS's own tool. */
+ipcMain.handle('image:convert', async (_event, bytes) => {
+  const dir = await fsp.mkdtemp(path.join(app.getPath('temp'), 'quire-image-'));
+  try {
+    const data = Buffer.from(bytes);
+    const tiff = data.subarray(0, 2).toString() === 'II' || data.subarray(0, 2).toString() === 'MM';
+    const input = path.join(dir, 'in');
+    const output = path.join(dir, 'out');
+    await fsp.writeFile(input, data);
+    // TIFFs may be transparent or line art, which JPEG would spoil.
+    await promisify(execFile)('/usr/bin/sips', ['-s', 'format', tiff ? 'png' : 'jpeg', input, '--out', output], { timeout: 30000 });
+    return await fsp.readFile(output);
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
+
 ipcMain.handle('confirm', async (event, { message, detail, ok }) => {
   const { response } = await dialog.showMessageBox(winFor(event), {
     type: 'warning',
@@ -726,6 +755,7 @@ function buildMenu() {
         cmd('Smaller', 'size-down', 'CmdOrCtrl+Shift+,'),
         { type: 'separator' },
         cmd('Insert Link…', 'link', 'CmdOrCtrl+K'),
+        cmd('Insert Image…', 'image', 'CmdOrCtrl+Alt+I'),
         cmd('Insert Equation', 'math', 'CmdOrCtrl+Shift+M'),
         cmd('Clear Formatting', 'clear-format', 'CmdOrCtrl+\\'),
       ],

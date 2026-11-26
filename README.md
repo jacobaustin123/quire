@@ -65,6 +65,7 @@ Open a file from the command line during development: `npx electron . path/to/fi
 | Markdown marks | `**bold**`, `*italic*`, `~~strike~~`, `---` rule |
 | Math | `$x^2$` inline, `$$…$$` on its own line (or `$$ ` + space) for display; ⇧⌘M; click to edit |
 | Link | ⌘K; ⌘-click to open |
+| Images | paste, drag in, or ⌥⌘I; click one and drag a corner to resize |
 | Find | ⌘F, then ⏎ / ⇧⏎ for next / previous |
 | Typewriter mode / focus on paragraph | ⇧⌘T / ⇧⌘F |
 | Go to page / start / end | ⌘G, ⌘↑ (or ⌘Home), ⌘↓ / ⇧⌘G (or ⌘End) |
@@ -97,7 +98,7 @@ digit), so currency like "$5 and $10" stays text. In `.docx`, equations are stor
   before it touches disk and must contain exactly the text, equations and kept-as-is content being
   saved, or nothing is written. A save that would cut the document to under half its words asks first.
 - **Protected mode**: .docx files with things Quire can't keep (footnotes, comments, tracked changes,
-  Word equations, section breaks, inline images/text boxes, complex fields, content controls) open
+  Word equations, section breaks, text boxes, complex fields, content controls) open
   normally but are never overwritten — saving always asks for a new file. Tables and block images are
   kept byte-for-byte.
 - Saves are atomic (write to a temp file, then rename).
@@ -106,9 +107,9 @@ digit), so currency like "$5 and $10" stays text. In `.docx`, equations are stor
 
 Kept: paragraphs, headings (Heading 1–3 styles), bold/italic/underline/strike, super/subscript,
 fonts and sizes, links, bulleted/numbered lists (nested, with numbering continuation), alignment,
-indentation, tabs, line breaks, horizontal rules, page setup, headers/footers, and styles.
-Dropped on save: images, tables (flattened to paragraphs), comments, tracked changes, colors and
-highlights, footnotes.
+indentation, tabs, line breaks, horizontal rules, page setup, headers/footers, styles, and pictures
+in line with the text. Tables and floating, cropped or styled pictures are kept as-is, uneditable.
+Dropped on save: colors and highlights. (Comments, tracked changes and footnotes: see Safety.)
 
 ## Layout
 

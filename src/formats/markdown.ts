@@ -4,6 +4,7 @@ import MarkdownIt from 'markdown-it';
 import type Token from 'markdown-it/lib/token.mjs';
 import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
 import type StateBlock from 'markdown-it/lib/rules_block/state_block.mjs';
+import { defaultSize, normalizeSrc } from './images';
 import { DEFAULT_META, type LoadedDoc, type PMMark, type PMNode } from './model';
 
 const CODE_FONT = 'Menlo';
@@ -249,6 +250,9 @@ function convertHtmlInline(content: string, marks: MarkState, out: InlineBuilder
   out.addText(content, marks.current);
 }
 
+/** An embedded image's on-page size, kept in its title (Markdown has no size syntax). */
+const IMAGE_SIZE_RE = /^(\d+(?:\.\d+)?) x (\d+(?:\.\d+)?)$/;
+
 /** Converts a markdown-it inline token list to PM inline nodes. */
 function convertInline(tokens: Token[] | null): PMNode[] {
   const out = new InlineBuilder();
@@ -292,8 +296,17 @@ function convertInline(tokens: Token[] | null): PMNode[] {
       case 'code_inline':
         out.addText(tok.content, [...marks.current, { type: 'textStyle', attrs: { fontFamily: CODE_FONT } }]);
         break;
-      case 'image':
-        out.addText(tok.content, marks.current);
+      case 'image': {
+        // Embedded images become pictures; linked files keep only their alt text, as before.
+        const src = normalizeSrc(tok.attrGet('src') ?? '');
+        const alt = (tok.children ?? []).map((c) => c.content).join('');
+        if (!src) out.addText(tok.content, marks.current);
+        else {
+          const size = IMAGE_SIZE_RE.exec(tok.attrGet('title') ?? '');
+          out.addNode({ type: 'image', attrs: { src, ...(size ? { width: Number(size[1]), height: Number(size[2]) } : defaultSize(src)), alt } });
+        }
+        break;
+      }
         break;
       case 'html_inline':
         convertHtmlInline(tok.content, marks, out);
@@ -545,6 +558,12 @@ function canonicalInline(nodes: PMNode[]): PMNode[] {
       if (!latex) continue;
       flush();
       out.push({ type: 'mathInline', attrs: { latex } });
+    } else if (node.type === 'image') {
+      const src = normalizeSrc(String(node.attrs?.src ?? ''));
+      if (!src) continue;
+      flush();
+      const alt = String(node.attrs?.alt ?? '').replace(/[\r\n]/g, ' ');
+      out.push({ type: 'image', attrs: { src, width: Number(node.attrs?.width) || 1, height: Number(node.attrs?.height) || 1, alt } });
     }
   }
   flush();
@@ -779,6 +798,9 @@ function serializeInline(nodes: PMNode[], opts: InlineOptions): string {
     } else if (node.type === 'mathInline') {
       out += `$${String(node.attrs?.latex ?? '')}$`;
       afterMath = true;
+    } else if (node.type === 'image') {
+      const a = node.attrs ?? {};
+      out += `![${escapeText(String(a.alt ?? ''), opts.heading)}](${String(a.src)} "${a.width} x ${a.height}")`;
     }
   });
   closeAll();

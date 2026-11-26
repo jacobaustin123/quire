@@ -17,8 +17,13 @@ const LOSSY: [RegExp, string][] = [
   [/<w:sdt\b/, 'content controls'],
 ];
 
+/** Whether `xml` holds anything Quire can't keep. */
+export function hasLossy(xml: string): boolean {
+  return LOSSY.some(([re]) => re.test(xml));
+}
+
 function rawXmls(doc: PMNode, out: string[] = []): string[] {
-  if (doc.type === 'docxRaw') out.push(String(doc.attrs?.xml ?? ''));
+  if (doc.type === 'docxRaw' || (doc.type === 'image' && doc.attrs?.xml)) out.push(String(doc.attrs?.xml ?? ''));
   for (const c of doc.content ?? []) rawXmls(c, out);
   return out;
 }
